@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Produto } from "../types/produto";
 
 interface CartaoProdutoProps {
@@ -6,21 +7,35 @@ interface CartaoProdutoProps {
 }
 
 export default function CartaoProduto({ produto }: CartaoProdutoProps) {
+  const [mostrarDetalhes, setMostrarDetalhes] = useState(false);
+
   return (
     <View style={styles.cartao}>
       <Text style={styles.nome}>{produto.nome}</Text>
 
-      <Text style={styles.informacao}>
-        Código de barras: {produto.codigo_barras}
-      </Text>
+      <Pressable onPress={() => setMostrarDetalhes(!mostrarDetalhes)}>
+        <Text style={styles.acao}>
+          {mostrarDetalhes ? "Ocultar detalhes" : "Ver detalhes"}
+        </Text>
+      </Pressable>
 
-      <Text style={styles.preco}>R$ {produto.preco_venda.toFixed(2)}</Text>
+      {mostrarDetalhes && (
+        <View style={styles.detalhes}>
+          <Text style={styles.informacao}>
+            Código de barras: {produto.codigo_barras}
+          </Text>
 
-      <Text style={styles.informacao}>Categoria: {produto.id_categoria}</Text>
+          <Text style={styles.preco}>R$ {produto.preco_venda.toFixed(2)}</Text>
 
-      <Text style={styles.status}>
-        {produto.ativo ? "Produto ativo" : "Produto inativo"}
-      </Text>
+          <Text style={styles.informacao}>
+            Categoria: {produto.id_categoria}
+          </Text>
+
+          <Text style={styles.status}>
+            {produto.ativo ? "Produto ativo" : "Produto inativo"}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -39,6 +54,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 12,
+  },
+
+  acao: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#2563eb",
+    marginBottom: 4,
+  },
+
+  detalhes: {
+    marginTop: 10,
   },
 
   informacao: {
