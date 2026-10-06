@@ -1,46 +1,68 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+
 import type { Produto } from "../types/produto";
 
 interface FormularioProdutoProps {
-  aoCriarProduto: (produto: Produto) => void;
-  proximoId: number;
+  aoCriarProduto: (produto: Produto) => Promise<void>;
 }
 
 export default function FormularioProduto({
   aoCriarProduto,
-  proximoId,
 }: FormularioProdutoProps) {
   const [nome, setNome] = useState("");
   const [codigoBarras, setCodigoBarras] = useState("");
   const [precoVenda, setPrecoVenda] = useState("");
   const [categoria, setCategoria] = useState("");
 
-  function criarProduto() {
+  const [erro, setErro] = useState("");
+
+  async function criarProduto() {
+    setErro("");
+
     if (
       nome.trim() === "" ||
       codigoBarras.trim() === "" ||
       precoVenda.trim() === "" ||
       categoria.trim() === ""
     ) {
+      setErro("Preencha todos os campos do produto.");
+      return;
+    }
+
+    const preco = Number(precoVenda.replace(",", "."));
+
+    const idCategoria = Number(categoria);
+
+    if (!Number.isFinite(preco) || preco <= 0) {
+      setErro("Informe um preço válido.");
+      return;
+    }
+
+    if (!Number.isInteger(idCategoria) || idCategoria <= 0) {
+      setErro("Informe uma categoria válida.");
       return;
     }
 
     const novoProduto: Produto = {
-      id: proximoId,
+      id: 0,
       nome: nome.trim(),
       codigo_barras: codigoBarras.trim(),
-      preco_venda: Number(precoVenda.replace(",", ".")),
-      id_categoria: Number(categoria),
+      preco_venda: preco,
+      id_categoria: idCategoria,
       ativo: true,
     };
 
-    aoCriarProduto(novoProduto);
+    try {
+      await aoCriarProduto(novoProduto);
 
-    setNome("");
-    setCodigoBarras("");
-    setPrecoVenda("");
-    setCategoria("");
+      setNome("");
+      setCodigoBarras("");
+      setPrecoVenda("");
+      setCategoria("");
+    } catch {
+      setErro("Não foi possível cadastrar o produto.");
+    }
   }
 
   return (
@@ -108,6 +130,8 @@ export default function FormularioProduto({
         </View>
       </View>
 
+      {erro !== "" && <Text style={styles.erro}>{erro}</Text>}
+
       <Pressable
         style={({ pressed }) => [
           styles.botao,
@@ -174,6 +198,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#111827",
     backgroundColor: "#f9fafb",
+  },
+
+  erro: {
+    color: "#b91c1c",
+    backgroundColor: "#fee2e2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    borderRadius: 7,
+    padding: 8,
+    marginBottom: 8,
+    fontSize: 11,
   },
 
   botao: {
