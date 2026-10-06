@@ -1,41 +1,35 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
 import type { Produto } from "../types/produto";
 
 interface CartaoProdutoProps {
   produto: Produto;
+  aoVerDetalhes: (id: number) => void;
 }
 
-export default function CartaoProduto({ produto }: CartaoProdutoProps) {
-  const [mostrarDetalhes, setMostrarDetalhes] = useState(false);
-
+export function CartaoProduto({
+  produto,
+  aoVerDetalhes,
+}: CartaoProdutoProps) {
   return (
     <View style={styles.cartao}>
-      <Text style={styles.nome}>{produto.nome}</Text>
+      <Text style={styles.nome}>
+        {produto.nome}
+      </Text>
 
-      <Pressable onPress={() => setMostrarDetalhes(!mostrarDetalhes)}>
-        <Text style={styles.acao}>
-          {mostrarDetalhes ? "Ocultar detalhes" : "Ver detalhes"}
+      <Pressable
+        style={styles.botao}
+        onPress={() => aoVerDetalhes(produto.id)}
+      >
+        <Text style={styles.textoBotao}>
+          Ver detalhes
         </Text>
       </Pressable>
-
-      {mostrarDetalhes && (
-        <View style={styles.detalhes}>
-          <Text style={styles.informacao}>
-            Código de barras: {produto.codigo_barras}
-          </Text>
-
-          <Text style={styles.preco}>R$ {produto.preco_venda.toFixed(2)}</Text>
-
-          <Text style={styles.informacao}>
-            Categoria: {produto.id_categoria}
-          </Text>
-
-          <Text style={styles.status}>
-            {produto.ativo ? "Produto ativo" : "Produto inativo"}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -51,35 +45,22 @@ const styles = StyleSheet.create({
   },
 
   nome: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
+    color: "#0f1a2e",
     marginBottom: 12,
   },
 
-  acao: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#2563eb",
-    marginBottom: 4,
+  botao: {
+    backgroundColor: "#2563eb",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignSelf: "flex-start",
   },
 
-  detalhes: {
-    marginTop: 10,
-  },
-
-  informacao: {
-    fontSize: 15,
-    marginBottom: 6,
-  },
-
-  preco: {
-    fontSize: 18,
+  textoBotao: {
+    color: "#ffffff",
     fontWeight: "bold",
-    marginBottom: 6,
-  },
-
-  status: {
-    fontSize: 15,
-    marginTop: 4,
   },
 });
