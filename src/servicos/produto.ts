@@ -1,36 +1,85 @@
 import type { Produto } from "../types/produto";
 
-const produtos: Produto[] = [
-  {
-    id: 1,
-    nome: "Semente de milho",
-    codigo_barras: "7891234567890",
-    preco_venda: 25.9,
-    id_categoria: 1,
-    ativo: true,
-  },
-  {
-    id: 2,
-    nome: "Semente de feijão",
-    codigo_barras: "7891234567891",
-    preco_venda: 18.5,
-    id_categoria: 1,
-    ativo: true,
-  },
-  {
-    id: 3,
-    nome: "Adubo NPK",
-    codigo_barras: "7899876543210",
-    preco_venda: 89.9,
-    id_categoria: 2,
-    ativo: true,
-  },
-];
+const URL_API = "http://10.130.7.54:3000";
 
-export function carregarProdutos(): Promise<Produto[]> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(produtos);
-    }, 1000);
-  });
+export async function carregarProdutos(): Promise<Produto[]> {
+  const resposta = await fetch(
+    `${URL_API}/produtos`
+  );
+
+  if (!resposta.ok) {
+    const mensagem = await resposta.text();
+
+    throw new Error(
+      mensagem ||
+        "Não foi possível carregar os produtos."
+    );
+  }
+
+  const produtos: Produto[] =
+    await resposta.json();
+
+  return produtos;
+}
+
+export async function carregarProdutoPorId(
+  id: number
+): Promise<Produto> {
+  const resposta = await fetch(
+    `${URL_API}/produtos/${id}`
+  );
+
+  if (!resposta.ok) {
+    const mensagem = await resposta.text();
+
+    throw new Error(
+      mensagem ||
+        "Não foi possível carregar o produto."
+    );
+  }
+
+  const produto: Produto =
+    await resposta.json();
+
+  return produto;
+}
+
+export async function cadastrarProduto(
+  produto: Produto
+): Promise<Produto> {
+  const resposta = await fetch(
+    `${URL_API}/produtos`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        nome: produto.nome,
+        codigo_barras:
+          produto.codigo_barras,
+        preco_venda:
+          produto.preco_venda,
+        id_categoria:
+          produto.id_categoria,
+        ativo: produto.ativo,
+      }),
+    }
+  );
+
+  if (!resposta.ok) {
+    const mensagem = await resposta.text();
+
+    throw new Error(
+      mensagem ||
+        "Não foi possível cadastrar o produto."
+    );
+  }
+
+  const novoProduto: Produto =
+    await resposta.json();
+
+  return novoProduto;
 }
