@@ -8,6 +8,8 @@ export type RotasDaPilha = {
 };
 
 export type RotasDasAbas = {
+  AbaInicio: undefined;
   AbaProdutos: NavigatorScreenParams<RotasDaPilha>;
-  AbaSobre: undefined;
+  AbaCadastro: undefined;
+  AbaMovimentacoes: undefined;
 };
