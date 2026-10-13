@@ -1,11 +1,19 @@
+
 import {
+  PixelRatio,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 
+import { cores, espacos, raio } from "../tema/tema";
+
 export function TelaSobre() {
+  const { width, height, fontScale } = useWindowDimensions();
+  const densidade = PixelRatio.get();
+
   return (
     <SafeAreaView style={styles.areaSegura}>
       <View style={styles.container}>
@@ -37,6 +45,28 @@ export function TelaSobre() {
             do SENAC.
           </Text>
         </View>
+
+        <View style={styles.card}>
+          <Text style={styles.tituloCard}>
+            Informações da tela
+          </Text>
+
+          <Text style={styles.texto}>
+            Largura da janela: {width.toFixed(0)} dp
+          </Text>
+
+          <Text style={styles.texto}>
+            Altura da janela: {height.toFixed(0)} dp
+          </Text>
+
+          <Text style={styles.texto}>
+            Densidade da tela: {densidade.toFixed(2)}
+          </Text>
+
+          <Text style={styles.texto}>
+            Escala da fonte: {fontScale.toFixed(2)}
+          </Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -45,44 +75,47 @@ export function TelaSobre() {
 const styles = StyleSheet.create({
   areaSegura: {
     flex: 1,
-    backgroundColor: "#eef1f6",
+    backgroundColor: cores.fundo,
   },
 
   container: {
     flex: 1,
-    padding: 20,
+    padding: espacos.md,
+    gap: espacos.md,
   },
 
   titulo: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#0f1a2e",
+    color: cores.texto,
   },
 
   subtitulo: {
     fontSize: 15,
-    color: "#555",
-    marginTop: 2,
-    marginBottom: 20,
+    color: cores.textoSecundario,
+    marginTop: -espacos.sm,
+    marginBottom: espacos.xs,
   },
 
   card: {
-    backgroundColor: "#ffffff",
-    padding: 20,
-    borderRadius: 12,
+    backgroundColor: cores.superficie,
+    padding: espacos.md,
+    borderRadius: raio,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    gap: espacos.xs,
   },
 
   tituloCard: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#0f1a2e",
-    marginBottom: 14,
+    color: cores.texto,
+    marginBottom: espacos.xs,
   },
 
   texto: {
     fontSize: 16,
     lineHeight: 24,
-    color: "#444",
-    marginBottom: 12,
+    color: cores.textoSecundario,
   },
 });
