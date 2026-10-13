@@ -1,4 +1,9 @@
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import type { KeyboardTypeOptions } from "react-native";
 
 import { cores, espacos, raio } from "../tema/tema";
@@ -9,6 +14,7 @@ interface CampoProps {
   aoMudar: (texto: string) => void;
   erro?: string;
   tipoDeTeclado?: KeyboardTypeOptions;
+  aoPerderFoco?: () => void;
 }
 
 export function Campo({
@@ -17,6 +23,7 @@ export function Campo({
   aoMudar,
   erro,
   tipoDeTeclado = "default",
+  aoPerderFoco,
 }: CampoProps) {
   return (
     <View style={estilos.grupo}>
@@ -29,6 +36,7 @@ export function Campo({
         ]}
         value={valor}
         onChangeText={aoMudar}
+        onBlur={aoPerderFoco}
         keyboardType={tipoDeTeclado}
         accessibilityLabel={rotulo}
       />
