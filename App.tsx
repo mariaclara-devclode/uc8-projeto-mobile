@@ -1,31 +1,20 @@
-import {
-  NavigationContainer,
-} from "@react-navigation/native";
-
-import {
-  createNativeStackNavigator,
-} from "@react-navigation/native-stack";
-
-import {
-  createBottomTabNavigator,
-} from "@react-navigation/bottom-tabs";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import type {
   RotasDaPilha,
   RotasDasAbas,
 } from "./src/navegacao/tipos";
 
+import { TelaInicio } from "./src/telas/TelaInicio";
 import { TelaProdutos } from "./src/telas/TelaProdutos";
-
 import { TelaDetalheProduto } from "./src/telas/TelaDetalheProduto";
+import { TelaCadastroProduto } from "./src/telas/TelaCadastroProduto";
+import { TelaMovimentacoes } from "./src/telas/TelaMovimentacoes";
 
-import { TelaSobre } from "./src/telas/TelaSobre";
-
-const Pilha =
-  createNativeStackNavigator<RotasDaPilha>();
-
-const Abas =
-  createBottomTabNavigator<RotasDasAbas>();
+const Pilha = createNativeStackNavigator<RotasDaPilha>();
+const Abas = createBottomTabNavigator<RotasDasAbas>();
 
 function PilhaProdutos() {
   return (
@@ -33,17 +22,13 @@ function PilhaProdutos() {
       <Pilha.Screen
         name="Produtos"
         component={TelaProdutos}
-        options={{
-          title: "Produtos",
-        }}
+        options={{ title: "Produtos" }}
       />
 
       <Pilha.Screen
         name="DetalheProduto"
         component={TelaDetalheProduto}
-        options={{
-          title: "Detalhes do Produto",
-        }}
+        options={{ title: "Detalhes do Produto" }}
       />
     </Pilha.Navigator>
   );
@@ -52,6 +37,27 @@ function PilhaProdutos() {
 function NavegacaoPrincipal() {
   return (
     <Abas.Navigator>
+      <Abas.Screen
+        name="AbaInicio"
+        options={{ title: "Início" }}
+      >
+        {({ navigation }) => (
+          <TelaInicio
+            aoAbrirProdutos={() =>
+              navigation.navigate("AbaProdutos", {
+                screen: "Produtos",
+              })
+            }
+            aoAbrirCadastro={() =>
+              navigation.navigate("AbaCadastro")
+            }
+            aoAbrirMovimentacoes={() =>
+              navigation.navigate("AbaMovimentacoes")
+            }
+          />
+        )}
+      </Abas.Screen>
+
       <Abas.Screen
         name="AbaProdutos"
         component={PilhaProdutos}
@@ -62,11 +68,15 @@ function NavegacaoPrincipal() {
       />
 
       <Abas.Screen
-        name="AbaSobre"
-        component={TelaSobre}
-        options={{
-          title: "Sobre",
-        }}
+        name="AbaCadastro"
+        component={TelaCadastroProduto}
+        options={{ title: "Cadastro" }}
+      />
+
+      <Abas.Screen
+        name="AbaMovimentacoes"
+        component={TelaMovimentacoes}
+        options={{ title: "Movimentações" }}
       />
     </Abas.Navigator>
   );
