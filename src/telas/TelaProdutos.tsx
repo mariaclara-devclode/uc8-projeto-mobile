@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -9,12 +8,21 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import {
+  useFocusEffect,
+  useNavigation,
+} from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
+import { Botao } from "../componentes/Botao";
 import { CartaoProduto } from "../componentes/CartaoProduto";
 import { carregarProdutos } from "../servicos/produto";
 import type { Produto } from "../types/produto";
-import type { RotasDaPilha } from "../navegacao/tipos";
+import type {
+  RotasDaPilha,
+  RotasDasAbas,
+} from "../navegacao/tipos";
 import { cores, espacos, larguraLarga } from "../tema/tema";
 
 type Props = NativeStackScreenProps<
@@ -22,24 +30,44 @@ type Props = NativeStackScreenProps<
   "Produtos"
 >;
 
+type NavegacaoAbas = BottomTabNavigationProp<RotasDasAbas>;
+
 export function TelaProdutos({ navigation }: Props) {
   const { width } = useWindowDimensions();
 
   const duasColunas = width >= larguraLarga;
 
+  const navegacaoAbas = useNavigation<NavegacaoAbas>();
+
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
+  const [atualizacao, setAtualizacao] = useState(0);
 
-  useEffect(() => {
-    carregarProdutos()
-      .then(setProdutos)
-      .catch((erroDesconhecido: unknown) => {
-        console.error(erroDesconhecido);
-        setErro("Não foi possível carregar os produtos.");
-      })
-      .finally(() => setCarregando(false));
+  const buscarProdutos = useCallback(async () => {
+    setCarregando(true);
+    setErro("");
+
+    try {
+      const resultado = await carregarProdutos();
+      setProdutos(resultado);
+    } catch (erroDesconhecido: unknown) {
+      console.error(erroDesconhecido);
+      setErro("Não foi possível carregar os produtos.");
+    } finally {
+      setCarregando(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void buscarProdutos();
+    }, [buscarProdutos, atualizacao]),
+  );
+
+  function recarregarProdutos() {
+    setAtualizacao((valorAtual) => valorAtual + 1);
+  }
 
   return (
     <SafeAreaView style={styles.areaSegura}>
@@ -49,6 +77,20 @@ export function TelaProdutos({ navigation }: Props) {
         <Text style={styles.subtitulo}>
           Consulte os produtos cadastrados no Estok.
         </Text>
+
+        <View style={styles.botoes}>
+          <Botao
+            titulo="Recarregar"
+            variante="secundario"
+            onPress={recarregarProdutos}
+            desabilitado={carregando}
+          />
+
+          <Botao
+            titulo="Cadastrar produto"
+            onPress={() => navegacaoAbas.navigate("AbaCadastro")}
+          />
+        </View>
 
         {carregando ? (
           <View style={styles.estado}>
@@ -62,7 +104,16 @@ export function TelaProdutos({ navigation }: Props) {
             </Text>
           </View>
         ) : erro !== "" ? (
-          <Text style={styles.erro}>{erro}</Text>
+          <View style={styles.estado}>
+            <Text style={styles.erro}>{erro}</Text>
+
+            <View style={styles.botaoTentarNovamente}>
+              <Botao
+                titulo="Tentar novamente"
+                onPress={recarregarProdutos}
+              />
+            </View>
+          </View>
         ) : (
           <FlatList
             key={duasColunas ? "duas-colunas" : "uma-coluna"}
@@ -125,6 +176,17 @@ const styles = StyleSheet.create({
     marginBottom: espacos.md,
   },
 
+  botoes: {
+    flexDirection: "row",
+    gap: espacos.sm,
+    marginBottom: espacos.md,
+  },
+
+  botaoTentarNovamente: {
+    marginTop: espacos.md,
+    width: "100%",
+  },
+
   lista: {
     paddingBottom: espacos.lg,
   },
@@ -163,5 +225,6 @@ const styles = StyleSheet.create({
     padding: espacos.md,
     backgroundColor: "#FEE2E2",
     borderRadius: 8,
+    textAlign: "center",
   },
 });
