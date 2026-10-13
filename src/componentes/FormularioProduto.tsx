@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
+import { Botao } from "./Botao";
+import { Campo } from "./Campo";
 import type { Produto } from "../types/produto";
 
 interface FormularioProdutoProps {
@@ -16,8 +18,16 @@ export default function FormularioProduto({
   const [categoria, setCategoria] = useState("");
 
   const [erro, setErro] = useState("");
+  const [nomeTocado, setNomeTocado] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+
+  const erroNome =
+    nomeTocado && nome.trim() === ""
+      ? "O nome do produto é obrigatório."
+      : undefined;
 
   async function criarProduto() {
+    setNomeTocado(true);
     setErro("");
 
     if (
@@ -31,7 +41,6 @@ export default function FormularioProduto({
     }
 
     const preco = Number(precoVenda.replace(",", "."));
-
     const idCategoria = Number(categoria);
 
     if (!Number.isFinite(preco) || preco <= 0) {
@@ -53,6 +62,8 @@ export default function FormularioProduto({
       ativo: true,
     };
 
+    setSalvando(true);
+
     try {
       await aoCriarProduto(novoProduto);
 
@@ -60,8 +71,11 @@ export default function FormularioProduto({
       setCodigoBarras("");
       setPrecoVenda("");
       setCategoria("");
+      setNomeTocado(false);
     } catch {
       setErro("Não foi possível cadastrar o produto.");
+    } finally {
+      setSalvando(false);
     }
   }
 
@@ -77,70 +91,56 @@ export default function FormularioProduto({
 
       <View style={styles.linha}>
         <View style={styles.campo}>
-          <Text style={styles.label}>Nome</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Ex.: Semente de milho"
-            placeholderTextColor="#9ca3af"
-            value={nome}
-            onChangeText={setNome}
+          <Campo
+            rotulo="Nome"
+            valor={nome}
+            aoMudar={setNome}
+            aoPerderFoco={() => setNomeTocado(true)}
+            erro={erroNome}
           />
         </View>
 
         <View style={styles.campo}>
-          <Text style={styles.label}>Código</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Código de barras"
-            placeholderTextColor="#9ca3af"
-            value={codigoBarras}
-            onChangeText={setCodigoBarras}
-            keyboardType="numeric"
+          <Campo
+            rotulo="Código"
+            valor={codigoBarras}
+            aoMudar={setCodigoBarras}
+            tipoDeTeclado="numeric"
           />
         </View>
       </View>
 
       <View style={styles.linha}>
         <View style={styles.campo}>
-          <Text style={styles.label}>Preço</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="R$ 0,00"
-            placeholderTextColor="#9ca3af"
-            value={precoVenda}
-            onChangeText={setPrecoVenda}
-            keyboardType="decimal-pad"
+          <Campo
+            rotulo="Preço"
+            valor={precoVenda}
+            aoMudar={setPrecoVenda}
+            tipoDeTeclado="decimal-pad"
           />
         </View>
 
         <View style={styles.campo}>
-          <Text style={styles.label}>Categoria</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="ID da categoria"
-            placeholderTextColor="#9ca3af"
-            value={categoria}
-            onChangeText={setCategoria}
-            keyboardType="numeric"
+          <Campo
+            rotulo="Categoria"
+            valor={categoria}
+            aoMudar={setCategoria}
+            tipoDeTeclado="numeric"
           />
         </View>
       </View>
 
-      {erro !== "" && <Text style={styles.erro}>{erro}</Text>}
+      {erro !== "" && (
+        <Text style={styles.erro}>{erro}</Text>
+      )}
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.botao,
-          pressed && styles.botaoPressionado,
-        ]}
-        onPress={criarProduto}
-      >
-        <Text style={styles.textoBotao}>Adicionar produto</Text>
-      </Pressable>
+      <View style={styles.linhaBotoes}>
+        <Botao
+          titulo={salvando ? "Salvando..." : "Adicionar produto"}
+          onPress={criarProduto}
+          desabilitado={nome.trim() === "" || salvando}
+        />
+      </View>
     </View>
   );
 }
@@ -154,52 +154,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e7eb",
   },
-
   cabecalho: {
     marginBottom: 10,
   },
-
   titulo: {
     fontSize: 17,
     fontWeight: "700",
     color: "#111827",
   },
-
   descricao: {
     fontSize: 11,
     color: "#6b7280",
     marginTop: 3,
   },
-
   linha: {
     flexDirection: "row",
     gap: 7,
     marginBottom: 8,
   },
-
   campo: {
     flex: 1,
     minWidth: 0,
   },
-
-  label: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 4,
+  linhaBotoes: {
+    flexDirection: "row",
+    marginTop: 2,
   },
-
-  input: {
-    height: 38,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 7,
-    paddingHorizontal: 8,
-    fontSize: 11,
-    color: "#111827",
-    backgroundColor: "#f9fafb",
-  },
-
   erro: {
     color: "#b91c1c",
     backgroundColor: "#fee2e2",
@@ -209,24 +189,5 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 8,
     fontSize: 11,
-  },
-
-  botao: {
-    height: 40,
-    backgroundColor: "#2563eb",
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-  },
-
-  botaoPressionado: {
-    opacity: 0.8,
-  },
-
-  textoBotao: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "700",
   },
 });
