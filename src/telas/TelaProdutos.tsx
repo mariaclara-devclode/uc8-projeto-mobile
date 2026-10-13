@@ -1,121 +1,77 @@
+
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { CartaoProduto } from "../componentes/CartaoProduto";
-import FormularioProduto from "../componentes/FormularioProduto";
-import {
-  carregarProdutos,
-  cadastrarProduto,
-} from "../servicos/produto";
+import { carregarProdutos } from "../servicos/produto";
 import type { Produto } from "../types/produto";
 import type { RotasDaPilha } from "../navegacao/tipos";
+import { cores, espacos, larguraLarga } from "../tema/tema";
 
-type TelaProdutosProps = NativeStackScreenProps<
+type Props = NativeStackScreenProps<
   RotasDaPilha,
   "Produtos"
 >;
 
-export function TelaProdutos({
-  navigation,
-}: TelaProdutosProps) {
+export function TelaProdutos({ navigation }: Props) {
+  const { width } = useWindowDimensions();
+
+  const duasColunas = width >= larguraLarga;
+
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [mostrarFormulario, setMostrarFormulario] =
-    useState(false);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
     carregarProdutos()
-      .then((produtosCarregados) => {
-        setProdutos(produtosCarregados);
-      })
-      .catch((erro) => {
-        console.error(erro);
+      .then(setProdutos)
+      .catch((erroDesconhecido: unknown) => {
+        console.error(erroDesconhecido);
         setErro("Não foi possível carregar os produtos.");
       })
-      .finally(() => {
-        setCarregando(false);
-      });
+      .finally(() => setCarregando(false));
   }, []);
-
-  async function adicionarProduto(produto: Produto) {
-    try {
-      setErro("");
-
-      const novoProduto = await cadastrarProduto(produto);
-
-      setProdutos((produtosAtuais) => [
-        ...produtosAtuais,
-        novoProduto,
-      ]);
-
-      setMostrarFormulario(false);
-    } catch (erro) {
-      console.error(erro);
-      setErro("Não foi possível cadastrar o produto.");
-    }
-  }
 
   return (
     <SafeAreaView style={styles.areaSegura}>
       <View style={styles.container}>
-        <Text style={styles.titulo}>Estok</Text>
+        <Text style={styles.titulo}>Produtos</Text>
 
         <Text style={styles.subtitulo}>
-          Gerenciador de Estoque Comercial
+          Consulte os produtos cadastrados no Estok.
         </Text>
 
-        <View style={styles.resumo}>
-          <Text style={styles.resumoTitulo}>
-            Resumo do Estoque
-          </Text>
-
-          <Text style={styles.resumoTexto}>
-            Produtos cadastrados: {produtos.length}
-          </Text>
-        </View>
-
-        <Pressable
-          style={styles.botaoFormulario}
-          onPress={() =>
-            setMostrarFormulario(!mostrarFormulario)
-          }
-        >
-          <Text style={styles.textoBotao}>
-            {mostrarFormulario
-              ? "Fechar cadastro"
-              : "Cadastrar produto"}
-          </Text>
-        </Pressable>
-
-        {mostrarFormulario && (
-          <FormularioProduto
-            aoCriarProduto={adicionarProduto}
-          />
-        )}
-
-        {erro !== "" && (
-          <Text style={styles.erro}>{erro}</Text>
-        )}
-
         {carregando ? (
-          <ActivityIndicator
-            size="large"
-            style={styles.carregando}
-          />
+          <View style={styles.estado}>
+            <ActivityIndicator
+              size="large"
+              color={cores.primaria}
+            />
+
+            <Text style={styles.textoEstado}>
+              Carregando produtos...
+            </Text>
+          </View>
+        ) : erro !== "" ? (
+          <Text style={styles.erro}>{erro}</Text>
         ) : (
           <FlatList
+            key={duasColunas ? "duas-colunas" : "uma-coluna"}
             data={produtos}
             keyExtractor={(item) => String(item.id)}
+            numColumns={duasColunas ? 2 : 1}
+            columnWrapperStyle={
+              duasColunas ? styles.linhaDeColunas : undefined
+            }
             contentContainerStyle={styles.lista}
             ListEmptyComponent={
               <Text style={styles.vazio}>
@@ -123,15 +79,20 @@ export function TelaProdutos({
               </Text>
             }
             renderItem={({ item }) => (
-              <CartaoProduto
-                produto={item}
-                aoVerDetalhes={(id) =>
-                  navigation.navigate(
-                    "DetalheProduto",
-                    { id }
-                  )
+              <View
+                style={
+                  duasColunas
+                    ? styles.itemDuasColunas
+                    : styles.itemUmaColuna
                 }
-              />
+              >
+                <CartaoProduto
+                  produto={item}
+                  aoVerDetalhes={(id) =>
+                    navigation.navigate("DetalheProduto", { id })
+                  }
+                />
+              </View>
             )}
           />
         )}
@@ -143,80 +104,64 @@ export function TelaProdutos({
 const styles = StyleSheet.create({
   areaSegura: {
     flex: 1,
-    backgroundColor: "#eef1f6",
+    backgroundColor: cores.fundo,
   },
 
   container: {
     flex: 1,
-    padding: 16,
+    padding: espacos.md,
   },
 
   titulo: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "bold",
-    color: "#0f1a2e",
+    color: cores.texto,
   },
 
   subtitulo: {
     fontSize: 15,
-    color: "#555",
-    marginTop: 2,
-    marginBottom: 16,
-  },
-
-  resumo: {
-    backgroundColor: "#ffffff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-
-  resumoTitulo: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#0f1a2e",
-    marginBottom: 6,
-  },
-
-  resumoTexto: {
-    fontSize: 15,
-    color: "#555",
-  },
-
-  botaoFormulario: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-
-  textoBotao: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  erro: {
-    color: "#b91c1c",
-    backgroundColor: "#fee2e2",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-
-  carregando: {
-    marginTop: 30,
+    color: cores.textoSecundario,
+    marginTop: espacos.xs,
+    marginBottom: espacos.md,
   },
 
   lista: {
-    paddingBottom: 20,
+    paddingBottom: espacos.lg,
+  },
+
+  linhaDeColunas: {
+    gap: espacos.md,
+  },
+
+  itemUmaColuna: {
+    width: "100%",
+  },
+
+  itemDuasColunas: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  estado: {
+    paddingTop: 30,
+    alignItems: "center",
+  },
+
+  textoEstado: {
+    marginTop: espacos.sm,
+    color: cores.textoSecundario,
   },
 
   vazio: {
     textAlign: "center",
-    color: "#666",
+    color: cores.textoSecundario,
     marginTop: 30,
-    fontSize: 16,
+  },
+
+  erro: {
+    color: cores.erro,
+    padding: espacos.md,
+    backgroundColor: "#FEE2E2",
+    borderRadius: 8,
   },
 });
