@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Alert,
@@ -22,18 +23,25 @@ export function TelaCadastroProduto() {
     setSalvando(true);
 
     try {
-      await cadastrarProduto(produto);
+      const resultado = await cadastrarProduto(produto);
 
-      Alert.alert(
-        "Cadastro realizado",
-        "O produto foi cadastrado com sucesso."
-      );
+      if (resultado === "offline") {
+        Alert.alert(
+          "Produto salvo no aparelho",
+          "O produto foi salvo localmente e ficará aguardando a sincronização quando a conexão voltar."
+        );
+      } else {
+        Alert.alert(
+          "Cadastro realizado",
+          "O produto foi cadastrado no Supabase com sucesso."
+        );
+      }
     } catch (erro: unknown) {
       console.error(erro);
 
       Alert.alert(
-        "Erro",
-        "Não foi possível cadastrar o produto. Verifique a API e tente novamente."
+        "Não foi possível cadastrar",
+        "O cadastro não foi concluído. Verifique a conexão, as configurações do Supabase e tente novamente."
       );
     } finally {
       setSalvando(false);

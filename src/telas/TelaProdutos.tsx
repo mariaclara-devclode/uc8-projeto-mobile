@@ -8,27 +8,26 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import {
-  useFocusEffect,
-  useNavigation,
-} from "@react-navigation/native";
+
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
 import { Botao } from "../componentes/Botao";
 import { CartaoProduto } from "../componentes/CartaoProduto";
+
 import { carregarProdutos } from "../servicos/produto";
+import { useEstadoApp } from "../contexto/EstadoAppContext";
+
+import type { EstadoTela } from "../types/estadoTela";
 import type { Produto } from "../types/produto";
-import type {
-  RotasDaPilha,
-  RotasDasAbas,
-} from "../navegacao/tipos";
+
+import type { RotasDaPilha, RotasDasAbas } from "../navegacao/tipos";
+
 import { cores, espacos, larguraLarga } from "../tema/tema";
 
-type Props = NativeStackScreenProps<
-  RotasDaPilha,
-  "Produtos"
->;
+type Props = NativeStackScreenProps<RotasDaPilha, "Produtos">;
 
 type NavegacaoAbas = BottomTabNavigationProp<RotasDasAbas>;
 
@@ -39,23 +38,33 @@ export function TelaProdutos({ navigation }: Props) {
 
   const navegacaoAbas = useNavigation<NavegacaoAbas>();
 
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState("");
+  const { conectado } = useEstadoApp();
+
+  const offline = !conectado;
+
+  const [estado, setEstado] = useState<EstadoTela<Produto[]>>({
+    status: "carregando",
+  });
+
   const [atualizacao, setAtualizacao] = useState(0);
 
   const buscarProdutos = useCallback(async () => {
-    setCarregando(true);
-    setErro("");
+    setEstado({ status: "carregando" });
 
     try {
-      const resultado = await carregarProdutos();
-      setProdutos(resultado);
+      const lista = await carregarProdutos();
+
+      setEstado({
+        status: "pronto",
+        dados: lista,
+      });
     } catch (erroDesconhecido: unknown) {
       console.error(erroDesconhecido);
-      setErro("Não foi possível carregar os produtos.");
-    } finally {
-      setCarregando(false);
+
+      setEstado({
+        status: "erro",
+        mensagem: "Não foi possível carregar os produtos.",
+      });
     }
   }, []);
 
@@ -78,12 +87,19 @@ export function TelaProdutos({ navigation }: Props) {
           Consulte os produtos cadastrados no Estok.
         </Text>
 
+        {offline && (
+          <Text style={styles.avisoOffline}>
+            Sem conexão com a internet. Os dados locais serão exibidos, se
+            disponíveis.
+          </Text>
+        )}
+
         <View style={styles.botoes}>
           <Botao
             titulo="Recarregar"
             variante="secundario"
             onPress={recarregarProdutos}
-            desabilitado={carregando}
+            desabilitado={estado.status === "carregando"}
           />
 
           <Botao
@@ -92,49 +108,35 @@ export function TelaProdutos({ navigation }: Props) {
           />
         </View>
 
-        {carregando ? (
+        {estado.status === "carregando" ? (
           <View style={styles.estado}>
-            <ActivityIndicator
-              size="large"
-              color={cores.primaria}
-            />
+            <ActivityIndicator size="large" color={cores.primaria} />
 
-            <Text style={styles.textoEstado}>
-              Carregando produtos...
-            </Text>
+            <Text style={styles.textoEstado}>Carregando produtos...</Text>
           </View>
-        ) : erro !== "" ? (
+        ) : estado.status === "erro" ? (
           <View style={styles.estado}>
-            <Text style={styles.erro}>{erro}</Text>
+            <Text style={styles.erro}>{estado.mensagem}</Text>
 
             <View style={styles.botaoTentarNovamente}>
-              <Botao
-                titulo="Tentar novamente"
-                onPress={recarregarProdutos}
-              />
+              <Botao titulo="Tentar novamente" onPress={recarregarProdutos} />
             </View>
           </View>
         ) : (
           <FlatList
             key={duasColunas ? "duas-colunas" : "uma-coluna"}
-            data={produtos}
+            data={estado.dados}
             keyExtractor={(item) => String(item.id)}
             numColumns={duasColunas ? 2 : 1}
-            columnWrapperStyle={
-              duasColunas ? styles.linhaDeColunas : undefined
-            }
+            columnWrapperStyle={duasColunas ? styles.linhaDeColunas : undefined}
             contentContainerStyle={styles.lista}
             ListEmptyComponent={
-              <Text style={styles.vazio}>
-                Nenhum produto cadastrado.
-              </Text>
+              <Text style={styles.vazio}>Nenhum produto cadastrado.</Text>
             }
             renderItem={({ item }) => (
               <View
                 style={
-                  duasColunas
-                    ? styles.itemDuasColunas
-                    : styles.itemUmaColuna
+                  duasColunas ? styles.itemDuasColunas : styles.itemUmaColuna
                 }
               >
                 <CartaoProduto
@@ -173,6 +175,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: cores.textoSecundario,
     marginTop: espacos.xs,
+    marginBottom: espacos.md,
+  },
+
+  avisoOffline: {
+    color: "#92400E",
+    backgroundColor: "#FEF3C7",
+    padding: espacos.sm,
+    borderRadius: 8,
     marginBottom: espacos.md,
   },
 

@@ -1,17 +1,20 @@
+import { useEffect } from "react";
+
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import * as Network from "expo-network";
 
-import type {
-  RotasDaPilha,
-  RotasDasAbas,
-} from "./src/navegacao/tipos";
+import type { RotasDaPilha, RotasDasAbas } from "./src/navegacao/tipos";
 
 import { TelaInicio } from "./src/telas/TelaInicio";
 import { TelaProdutos } from "./src/telas/TelaProdutos";
 import { TelaDetalheProduto } from "./src/telas/TelaDetalheProduto";
 import { TelaCadastroProduto } from "./src/telas/TelaCadastroProduto";
 import { TelaMovimentacoes } from "./src/telas/TelaMovimentacoes";
+
+import { sincronizarPendencias } from "./src/servicos/produto";
+import { ProvedorEstadoApp } from "./src/contexto/EstadoAppContext";
 
 const Pilha = createNativeStackNavigator<RotasDaPilha>();
 const Abas = createBottomTabNavigator<RotasDasAbas>();
@@ -37,10 +40,7 @@ function PilhaProdutos() {
 function NavegacaoPrincipal() {
   return (
     <Abas.Navigator>
-      <Abas.Screen
-        name="AbaInicio"
-        options={{ title: "Início" }}
-      >
+      <Abas.Screen name="AbaInicio" options={{ title: "Início" }}>
         {({ navigation }) => (
           <TelaInicio
             aoAbrirProdutos={() =>
@@ -48,12 +48,8 @@ function NavegacaoPrincipal() {
                 screen: "Produtos",
               })
             }
-            aoAbrirCadastro={() =>
-              navigation.navigate("AbaCadastro")
-            }
-            aoAbrirMovimentacoes={() =>
-              navigation.navigate("AbaMovimentacoes")
-            }
+            aoAbrirCadastro={() => navigation.navigate("AbaCadastro")}
+            aoAbrirMovimentacoes={() => navigation.navigate("AbaMovimentacoes")}
           />
         )}
       </Abas.Screen>
@@ -83,9 +79,54 @@ function NavegacaoPrincipal() {
 }
 
 export default function App() {
+  useEffect(() => {
+    let ativo = true;
+    let sincronizando = false;
+
+    async function tentarSincronizar() {
+      if (sincronizando) {
+        return;
+      }
+
+      try {
+        const estado = await Network.getNetworkStateAsync();
+
+        if (
+          !ativo ||
+          !estado.isConnected ||
+          estado.isInternetReachable === false
+        ) {
+          return;
+        }
+
+        sincronizando = true;
+        await sincronizarPendencias();
+      } catch {
+        // As operações pendentes permanecem na fila.
+      } finally {
+        sincronizando = false;
+      }
+    }
+
+    void tentarSincronizar();
+
+    const assinatura = Network.addNetworkStateListener((estado) => {
+      if (estado.isConnected && estado.isInternetReachable !== false) {
+        void tentarSincronizar();
+      }
+    });
+
+    return () => {
+      ativo = false;
+      assinatura.remove();
+    };
+  }, []);
+
   return (
-    <NavigationContainer>
-      <NavegacaoPrincipal />
-    </NavigationContainer>
+    <ProvedorEstadoApp>
+      <NavigationContainer>
+        <NavegacaoPrincipal />
+      </NavigationContainer>
+    </ProvedorEstadoApp>
   );
 }
