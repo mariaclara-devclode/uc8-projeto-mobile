@@ -42,3 +42,8 @@ yarn-error.*
 
 .env
 .env.local
+
+
+.env
+.env.*
+!.env.example

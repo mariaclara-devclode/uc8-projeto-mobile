@@ -71,3 +71,83 @@ Ficam de fora do aplicativo mobile o gerenciamento completo de categorias e as d
 ### Objetivo do módulo
 
 Este projeto corresponde ao recorte do sistema da UC5 para o desenvolvimento do aplicativo mobile na UC8.
+
+### Configuração
+
+Para executar o aplicativo, é necessário ter o Node.js instalado, configurar as dependências do projeto e criar um projeto no Supabase.
+
+#### Instalação
+
+Execute o comando abaixo na pasta raiz do projeto:
+
+```bash
+npm install
+```
+
+#### Configuração do Supabase
+
+1. Crie ou acesse o projeto no [Supabase](https://supabase.com/dashboard).
+2. Configure a tabela `produtos` no banco de dados.
+3. Habilite a segurança em nível de linha (RLS) e configure as políticas de acesso necessárias para leitura e inclusão de produtos.
+4. Copie a URL do projeto e a chave pública apropriada para uso no aplicativo.
+5. Crie o arquivo `.env.local` na raiz do projeto e configure as variáveis de ambiente necessárias.
+
+O arquivo `.env.example` contém um modelo das variáveis exigidas, sem valores reais de acesso.
+
+**Importante:** não compartilhe nem envie o arquivo `.env.local` ao GitHub. Ele contém informações de configuração que devem permanecer fora do repositório.
+
+#### Executar o aplicativo
+
+Após configurar as variáveis de ambiente, execute:
+
+```bash
+npx expo start
+```
+
+Siga as instruções exibidas no terminal para abrir o aplicativo no Expo Go ou em um emulador compatível.
+
+### Navegação
+
+O aplicativo utiliza navegação por abas para acessar as principais áreas e navegação em pilha para abrir os detalhes de um produto selecionado.
+
+- **Início:** aba inicial, aberta pela navegação inferior. Apresenta o acesso às principais funções do ESTOK.
+- **Produtos:** acessada pela aba Produtos. Apresenta a lista de produtos cadastrados.
+- **Detalhes do Produto:** aberta a partir da lista de produtos. Recebe o identificador numérico (`id`) do produto selecionado por meio de um parâmetro tipado da navegação.
+- **Cadastro de Produto:** acessado pela aba de cadastro. Permite preencher os dados e cadastrar um novo produto.
+- **Movimentações:** acessada pela aba Movimentações. Apresenta a área destinada às entradas e saídas do estoque.
+
+A navegação em pilha permite abrir os detalhes de um produto e retornar à lista. As abas permitem alternar entre as áreas principais do aplicativo.
+
+### Banco local e funcionamento offline
+
+O aplicativo utiliza SQLite por meio do pacote `expo-sqlite` para armazenar localmente os dados necessários ao funcionamento offline.
+
+O banco local é utilizado para:
+
+- Manter um cache dos produtos carregados do Supabase.
+- Permitir a consulta aos produtos já armazenados quando não houver conexão com a internet.
+- Registrar operações pendentes de sincronização, conforme a implementação do aplicativo.
+
+Quando a conexão estiver disponível, as operações pendentes deverão ser enviadas ao Supabase, com tratamento de falhas e confirmação da sincronização.
+
+### Verificação do TypeScript
+
+Para verificar os tipos do projeto, execute:
+
+```bash
+npx tsc --noEmit
+```
+
+### Geração do APK
+
+O projeto utiliza o EAS Build para gerar um APK para Android. Com o perfil de compilação configurado no arquivo `eas.json`, execute:
+
+```bash
+npx eas-cli build -p android --profile preview
+```
+
+A geração do APK depende da configuração do aplicativo e da autenticação necessária no EAS.
+
+### Testes
+
+Os testes devem registrar os resultados reais de navegação, cadastro, consulta ao Supabase, funcionamento offline, sincronização e instalação do APK. Consulte `docs/roteiro_de_teste.md` para acompanhar os casos executados.
