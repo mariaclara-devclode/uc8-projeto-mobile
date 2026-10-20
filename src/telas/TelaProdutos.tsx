@@ -1,4 +1,3 @@
-import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -9,7 +8,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
@@ -17,11 +16,7 @@ import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { Botao } from "../componentes/Botao";
 import { CartaoProduto } from "../componentes/CartaoProduto";
 
-import { carregarProdutos } from "../servicos/produto";
 import { useEstadoApp } from "../contexto/EstadoAppContext";
-
-import type { EstadoTela } from "../types/estadoTela";
-import type { Produto } from "../types/produto";
 
 import type { RotasDaPilha, RotasDasAbas } from "../navegacao/tipos";
 
@@ -38,45 +33,11 @@ export function TelaProdutos({ navigation }: Props) {
 
   const navegacaoAbas = useNavigation<NavegacaoAbas>();
 
-  const { conectado } = useEstadoApp();
+  // A lista agora vem do contexto: carrega uma vez, e o cadastro e a
+  // sincronização atualizam a mesma lista para todas as telas.
+  const { conectado, produtos, recarregarProdutos } = useEstadoApp();
 
   const offline = !conectado;
-
-  const [estado, setEstado] = useState<EstadoTela<Produto[]>>({
-    status: "carregando",
-  });
-
-  const [atualizacao, setAtualizacao] = useState(0);
-
-  const buscarProdutos = useCallback(async () => {
-    setEstado({ status: "carregando" });
-
-    try {
-      const lista = await carregarProdutos();
-
-      setEstado({
-        status: "pronto",
-        dados: lista,
-      });
-    } catch (erroDesconhecido: unknown) {
-      console.error(erroDesconhecido);
-
-      setEstado({
-        status: "erro",
-        mensagem: "Não foi possível carregar os produtos.",
-      });
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void buscarProdutos();
-    }, [buscarProdutos, atualizacao]),
-  );
-
-  function recarregarProdutos() {
-    setAtualizacao((valorAtual) => valorAtual + 1);
-  }
 
   return (
     <SafeAreaView style={styles.areaSegura}>
@@ -98,8 +59,8 @@ export function TelaProdutos({ navigation }: Props) {
           <Botao
             titulo="Recarregar"
             variante="secundario"
-            onPress={recarregarProdutos}
-            desabilitado={estado.status === "carregando"}
+            onPress={() => void recarregarProdutos()}
+            desabilitado={produtos.status === "carregando"}
           />
 
           <Botao
@@ -108,24 +69,27 @@ export function TelaProdutos({ navigation }: Props) {
           />
         </View>
 
-        {estado.status === "carregando" ? (
+        {produtos.status === "carregando" ? (
           <View style={styles.estado}>
             <ActivityIndicator size="large" color={cores.primaria} />
 
             <Text style={styles.textoEstado}>Carregando produtos...</Text>
           </View>
-        ) : estado.status === "erro" ? (
+        ) : produtos.status === "erro" ? (
           <View style={styles.estado}>
-            <Text style={styles.erro}>{estado.mensagem}</Text>
+            <Text style={styles.erro}>{produtos.mensagem}</Text>
 
             <View style={styles.botaoTentarNovamente}>
-              <Botao titulo="Tentar novamente" onPress={recarregarProdutos} />
+              <Botao
+                titulo="Tentar novamente"
+                onPress={() => void recarregarProdutos()}
+              />
             </View>
           </View>
         ) : (
           <FlatList
             key={duasColunas ? "duas-colunas" : "uma-coluna"}
-            data={estado.dados}
+            data={produtos.dados}
             keyExtractor={(item) => String(item.id)}
             numColumns={duasColunas ? 2 : 1}
             columnWrapperStyle={duasColunas ? styles.linhaDeColunas : undefined}

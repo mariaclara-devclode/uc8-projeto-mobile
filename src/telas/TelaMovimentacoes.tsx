@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   ActivityIndicator,
@@ -10,82 +9,82 @@ import {
   View,
 } from "react-native";
 
-import type { Movimentacao } from "../types/movimentacao";
+import { Botao } from "../componentes/Botao";
 import { carregarMovimentacoes } from "../servicos/movimentacao";
 
+import type { EstadoTela } from "../types/estadoTela";
+import type { Movimentacao } from "../types/movimentacao";
+
+import { cores, espacos, raio } from "../tema/tema";
+
+function formatarData(data: Date): string {
+  return data.toLocaleString("pt-BR");
+}
+
 export function TelaMovimentacoes() {
-  const [movimentacoes, setMovimentacoes] =
-    useState<Movimentacao[]>([]);
+  const [estado, setEstado] = useState<EstadoTela<Movimentacao[]>>({
+    status: "carregando",
+  });
 
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
+  const buscarHistorico = useCallback(async () => {
+    setEstado({ status: "carregando" });
 
-  useEffect(() => {
-    async function buscarHistorico() {
-      try {
-        setCarregando(true);
-        setErro(null);
+    try {
+      const dados = await carregarMovimentacoes();
 
-        const dados = await carregarMovimentacoes();
+      setEstado({ status: "pronto", dados });
+    } catch (erro: unknown) {
+      console.error(erro);
 
-        setMovimentacoes(dados);
-      } catch (erroRecebido: unknown) {
-        setErro(
-          erroRecebido instanceof Error
-            ? erroRecebido.message
-            : "Não foi possível carregar as movimentações."
-        );
-      } finally {
-        setCarregando(false);
-      }
+      setEstado({
+        status: "erro",
+        mensagem: "Não foi possível carregar as movimentações.",
+      });
     }
-
-    void buscarHistorico();
   }, []);
 
-  function formatarData(data: Date): string {
-    return data.toLocaleString("pt-BR");
-  }
+  useEffect(() => {
+    void buscarHistorico();
+  }, [buscarHistorico]);
 
   return (
     <SafeAreaView style={styles.areaSegura}>
       <View style={styles.container}>
-        <Text style={styles.titulo}>
-          Movimentações
-        </Text>
+        <Text style={styles.titulo}>Movimentações</Text>
 
         <Text style={styles.subtitulo}>
           Acompanhe as entradas e saídas do estoque.
         </Text>
 
         <View style={styles.card}>
-          <Text style={styles.tituloCard}>
-            Histórico de movimentações
-          </Text>
+          <Text style={styles.tituloCard}>Histórico de movimentações</Text>
 
-          {carregando ? (
+          {estado.status === "carregando" ? (
             <View style={styles.estado}>
-              <ActivityIndicator
-                size="large"
-                color="#2563eb"
-              />
+              <ActivityIndicator size="large" color={cores.primaria} />
 
-              <Text style={styles.mensagem}>
-                Carregando histórico...
-              </Text>
+              <Text style={styles.mensagem}>Carregando histórico...</Text>
             </View>
-          ) : erro !== null ? (
-            <Text style={styles.erro}>
-              {erro}
-            </Text>
-          ) : movimentacoes.length === 0 ? (
-            <Text style={styles.vazio}>
-              Nenhuma movimentação disponível.
-            </Text>
+          ) : estado.status === "erro" ? (
+            <View>
+              <Text style={styles.erro}>{estado.mensagem}</Text>
+
+              <View style={styles.botaoTentarNovamente}>
+                <Botao
+                  titulo="Tentar novamente"
+                  onPress={() => void buscarHistorico()}
+                />
+              </View>
+            </View>
           ) : (
             <FlatList
-              data={movimentacoes}
+              data={estado.dados}
               keyExtractor={(item) => String(item.id)}
+              ListEmptyComponent={
+                <Text style={styles.vazio}>
+                  Nenhuma movimentação disponível.
+                </Text>
+              }
               renderItem={({ item }) => (
                 <View style={styles.item}>
                   <Text style={styles.tipo}>
@@ -102,9 +101,7 @@ export function TelaMovimentacoes() {
                     Quantidade: {item.quantidade}
                   </Text>
 
-                  <Text style={styles.data}>
-                    {formatarData(item.data)}
-                  </Text>
+                  <Text style={styles.data}>{formatarData(item.data)}</Text>
                 </View>
               )}
             />
@@ -118,72 +115,79 @@ export function TelaMovimentacoes() {
 const styles = StyleSheet.create({
   areaSegura: {
     flex: 1,
-    backgroundColor: "#eef1f6",
+    backgroundColor: cores.fundo,
   },
   container: {
     flex: 1,
-    padding: 20,
+    padding: espacos.md,
   },
   titulo: {
     fontSize: 26,
     fontWeight: "bold",
-    color: "#0f1a2e",
+    color: cores.texto,
   },
   subtitulo: {
-    color: "#555",
+    color: cores.textoSecundario,
     fontSize: 15,
-    marginTop: 5,
-    marginBottom: 20,
+    marginTop: espacos.xs,
+    marginBottom: espacos.md,
   },
   card: {
     flex: 1,
-    backgroundColor: "#ffffff",
-    padding: 18,
-    borderRadius: 12,
+    backgroundColor: cores.superficie,
+    padding: espacos.md,
+    borderRadius: raio,
+    borderWidth: 1,
+    borderColor: cores.borda,
   },
   tituloCard: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#0f1a2e",
-    marginBottom: 14,
+    color: cores.texto,
+    marginBottom: espacos.md,
   },
   estado: {
     alignItems: "center",
-    padding: 20,
+    padding: espacos.lg,
   },
   mensagem: {
-    color: "#555",
-    marginTop: 10,
+    color: cores.textoSecundario,
+    marginTop: espacos.sm,
   },
   vazio: {
     fontSize: 15,
-    color: "#666",
-    marginBottom: 12,
+    color: cores.textoSecundario,
+    textAlign: "center",
+    marginTop: espacos.md,
   },
   erro: {
     fontSize: 14,
-    color: "#b91c1c",
+    color: cores.erro,
     lineHeight: 21,
   },
+  botaoTentarNovamente: {
+    flexDirection: "row",
+    marginTop: espacos.md,
+  },
   item: {
-    paddingVertical: 14,
+    paddingVertical: espacos.md,
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: cores.borda,
   },
   tipo: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#0f1a2e",
+    color: cores.texto,
     marginBottom: 6,
   },
   detalhe: {
     fontSize: 14,
-    color: "#444",
-    marginBottom: 4,
+    color: cores.textoSecundario,
+    marginBottom: espacos.xs,
   },
   data: {
     fontSize: 13,
-    color: "#666",
-    marginTop: 4,
+    color: cores.textoSecundario,
+    marginTop: espacos.xs,
   },
 });

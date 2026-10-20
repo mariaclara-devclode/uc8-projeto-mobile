@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Alert,
@@ -9,13 +8,17 @@ import {
 } from "react-native";
 
 import FormularioProduto from "../componentes/FormularioProduto";
-import { cadastrarProduto } from "../servicos/produto";
+import { useEstadoApp } from "../contexto/EstadoAppContext";
 import type { Produto } from "../types/produto";
 
+import { cores, espacos } from "../tema/tema";
+
 export function TelaCadastroProduto() {
+  const { incluirProduto } = useEstadoApp();
+
   const [salvando, setSalvando] = useState(false);
 
-  async function salvarProduto(produto: Produto) {
+  async function salvarProduto(produto: Produto): Promise<void> {
     if (salvando) {
       return;
     }
@@ -23,26 +26,25 @@ export function TelaCadastroProduto() {
     setSalvando(true);
 
     try {
-      const resultado = await cadastrarProduto(produto);
+      const resultado = await incluirProduto(produto);
 
       if (resultado === "offline") {
         Alert.alert(
           "Produto salvo no aparelho",
-          "O produto foi salvo localmente e ficará aguardando a sincronização quando a conexão voltar."
+          "O produto foi salvo localmente e ficará aguardando a sincronização quando a conexão voltar.",
         );
       } else {
         Alert.alert(
           "Cadastro realizado",
-          "O produto foi cadastrado no Supabase com sucesso."
+          "O produto foi cadastrado no Supabase com sucesso.",
         );
       }
     } catch (erro: unknown) {
       console.error(erro);
 
-      Alert.alert(
-        "Não foi possível cadastrar",
-        "O cadastro não foi concluído. Verifique a conexão, as configurações do Supabase e tente novamente."
-      );
+      // Relança para o formulário saber que falhou e NÃO apagar o que a
+      // pessoa digitou. O formulário mostra a mensagem de erro na tela.
+      throw erro;
     } finally {
       setSalvando(false);
     }
@@ -57,15 +59,9 @@ export function TelaCadastroProduto() {
           Preencha os dados do produto agrícola.
         </Text>
 
-        {salvando && (
-          <Text style={styles.aviso}>
-            Salvando produto...
-          </Text>
-        )}
+        {salvando && <Text style={styles.aviso}>Salvando produto...</Text>}
 
-        <FormularioProduto
-          aoCriarProduto={salvarProduto}
-        />
+        <FormularioProduto aoCriarProduto={salvarProduto} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -74,25 +70,25 @@ export function TelaCadastroProduto() {
 const styles = StyleSheet.create({
   areaSegura: {
     flex: 1,
-    backgroundColor: "#eef1f6",
+    backgroundColor: cores.fundo,
   },
   container: {
-    padding: 20,
-    paddingBottom: 32,
+    padding: espacos.md,
+    paddingBottom: espacos.lg,
   },
   titulo: {
-    fontSize: 25,
+    fontSize: 26,
     fontWeight: "bold",
-    color: "#0f1a2e",
+    color: cores.texto,
   },
   subtitulo: {
     fontSize: 15,
-    color: "#555",
-    marginTop: 5,
-    marginBottom: 20,
+    color: cores.textoSecundario,
+    marginTop: espacos.xs,
+    marginBottom: espacos.md,
   },
   aviso: {
-    color: "#2563eb",
-    marginBottom: 12,
+    color: cores.primaria,
+    marginBottom: espacos.sm,
   },
 });

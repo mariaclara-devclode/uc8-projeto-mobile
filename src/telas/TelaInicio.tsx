@@ -6,6 +6,9 @@ import {
   View,
 } from "react-native";
 
+import { useEstadoApp } from "../contexto/EstadoAppContext";
+import { cores, espacos, raio } from "../tema/tema";
+
 interface TelaInicioProps {
   aoAbrirProdutos: () => void;
   aoAbrirCadastro: () => void;
@@ -17,46 +20,49 @@ export function TelaInicio({
   aoAbrirCadastro,
   aoAbrirMovimentacoes,
 }: TelaInicioProps) {
+  const { produtos } = useEstadoApp();
+
   return (
     <SafeAreaView style={styles.areaSegura}>
       <View style={styles.container}>
         <Text style={styles.titulo}>Estok</Text>
 
-        <Text style={styles.subtitulo}>
-          Gerenciador de Estoque Comercial
-        </Text>
+        <Text style={styles.subtitulo}>Gerenciador de Estoque Comercial</Text>
 
         <View style={styles.card}>
-          <Text style={styles.tituloCard}>
-            Bem-vindo ao Estok!
-          </Text>
+          <Text style={styles.tituloCard}>Resumo do estoque</Text>
 
-          <Text style={styles.texto}>
-            Gerencie seus produtos agrícolas e acompanhe
-            as informações do seu estoque.
-          </Text>
+          {produtos.status === "carregando" ? (
+            <Text style={styles.texto}>Carregando resumo...</Text>
+          ) : produtos.status === "erro" ? (
+            <Text style={styles.texto}>Resumo indisponível no momento.</Text>
+          ) : (
+            <>
+              <Text style={styles.texto}>
+                Produtos cadastrados: {produtos.dados.length}
+              </Text>
+
+              <Text style={styles.texto}>
+                Produtos ativos:{" "}
+                {produtos.dados.filter((produto) => produto.ativo).length}
+              </Text>
+
+              <Text style={styles.texto}>
+                Aguardando sincronização:{" "}
+                {produtos.dados.filter((produto) => produto.id < 0).length}
+              </Text>
+            </>
+          )}
         </View>
 
-        <Text style={styles.tituloSecao}>
-          Acesso rápido
-        </Text>
+        <Text style={styles.tituloSecao}>Acesso rápido</Text>
 
-        <Pressable
-          style={styles.botao}
-          onPress={aoAbrirProdutos}
-        >
-          <Text style={styles.textoBotao}>
-            Consultar produtos
-          </Text>
+        <Pressable style={styles.botao} onPress={aoAbrirProdutos}>
+          <Text style={styles.textoBotao}>Consultar produtos</Text>
         </Pressable>
 
-        <Pressable
-          style={styles.botaoSecundario}
-          onPress={aoAbrirCadastro}
-        >
-          <Text style={styles.textoBotaoSecundario}>
-            Cadastrar produto
-          </Text>
+        <Pressable style={styles.botaoSecundario} onPress={aoAbrirCadastro}>
+          <Text style={styles.textoBotaoSecundario}>Cadastrar produto</Text>
         </Pressable>
 
         <Pressable
@@ -75,68 +81,71 @@ export function TelaInicio({
 const styles = StyleSheet.create({
   areaSegura: {
     flex: 1,
-    backgroundColor: "#eef1f6",
+    backgroundColor: cores.fundo,
   },
   container: {
     flex: 1,
-    padding: 20,
+    padding: espacos.md,
   },
   titulo: {
     fontSize: 30,
     fontWeight: "bold",
-    color: "#0f1a2e",
+    color: cores.texto,
   },
   subtitulo: {
     fontSize: 15,
-    color: "#555",
-    marginBottom: 24,
+    color: cores.textoSecundario,
+    marginBottom: espacos.lg,
   },
   card: {
-    backgroundColor: "#ffffff",
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 24,
+    backgroundColor: cores.superficie,
+    padding: espacos.md,
+    borderRadius: raio,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    marginBottom: espacos.lg,
+    gap: espacos.xs,
   },
   tituloCard: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#0f1a2e",
-    marginBottom: 10,
+    color: cores.texto,
+    marginBottom: espacos.xs,
   },
   texto: {
     fontSize: 16,
     lineHeight: 23,
-    color: "#555",
+    color: cores.textoSecundario,
   },
   tituloSecao: {
     fontSize: 19,
     fontWeight: "bold",
-    color: "#0f1a2e",
-    marginBottom: 12,
+    color: cores.texto,
+    marginBottom: espacos.sm,
   },
   botao: {
-    backgroundColor: "#2563eb",
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: cores.primaria,
+    padding: espacos.md,
+    borderRadius: raio,
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: espacos.sm,
   },
   textoBotao: {
-    color: "#ffffff",
+    color: cores.textoClaro,
     fontSize: 16,
     fontWeight: "bold",
   },
   botaoSecundario: {
-    backgroundColor: "#ffffff",
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: cores.superficie,
+    padding: espacos.md,
+    borderRadius: raio,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#2563eb",
-    marginBottom: 12,
+    borderColor: cores.primaria,
+    marginBottom: espacos.sm,
   },
   textoBotaoSecundario: {
-    color: "#2563eb",
+    color: cores.primaria,
     fontSize: 16,
     fontWeight: "bold",
   },

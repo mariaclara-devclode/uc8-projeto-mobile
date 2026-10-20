@@ -1,4 +1,3 @@
-
 export const cores = {
   fundo: "#F6F8FA",
   superficie: "#FFFFFF",
@@ -9,6 +8,7 @@ export const cores = {
   borda: "#D0D7DE",
   alerta: "#F7941D",
   erro: "#B42318",
+  sucesso: "#15803D",
 };
 
 export const espacos = {
