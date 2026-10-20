@@ -22,7 +22,7 @@ const COLUNAS_PRODUTO = "id,nome,codigo_barras,preco_venda,id_categoria,ativo";
 
 type DadosNovoProduto = Omit<Produto, "id">;
 
-type ResultadoCadastro = Produto | "offline";
+export type ResultadoCadastro = Produto | "offline";
 
 function obterConfiguracao(): {
   url: string;
@@ -323,8 +323,13 @@ export async function cadastrarProduto(
   return produtoSalvo;
 }
 
+const MAXIMO_TENTATIVAS = 5;
+
 export async function sincronizarPendencias(): Promise<number> {
   const pendencias = await listarPendencias();
+
+  const url = `${obterUrlProdutos()}?select=${COLUNAS_PRODUTO}`;
+  const headers = obterCabecalhos();
 
   let sincronizadas = 0;
 
@@ -333,18 +338,29 @@ export async function sincronizarPendencias(): Promise<number> {
       continue;
     }
 
+    // Operação que já falhou várias vezes: não insiste mais.
+    if (pendencia.tentativas >= MAXIMO_TENTATIVAS) {
+      continue;
+    }
+
+    let dados: unknown;
+
     try {
-      const dados: unknown = JSON.parse(pendencia.dados);
+      dados = JSON.parse(pendencia.dados);
+    } catch {
+      await registrarFalha(pendencia.id);
+      continue;
+    }
 
-      if (typeof dados !== "object" || dados === null || Array.isArray(dados)) {
-        await registrarFalha(pendencia.id);
-        continue;
-      }
+    if (typeof dados !== "object" || dados === null || Array.isArray(dados)) {
+      await registrarFalha(pendencia.id);
+      continue;
+    }
 
-      const url = `${obterUrlProdutos()}?select=${COLUNAS_PRODUTO}`;
-      const headers = obterCabecalhos();
+    let resposta: Response;
 
-      const resposta = await fetch(url, {
+    try {
+      resposta = await fetch(url, {
         method: "POST",
         headers: {
           ...headers,
@@ -352,12 +368,17 @@ export async function sincronizarPendencias(): Promise<number> {
         },
         body: JSON.stringify(dados),
       });
+    } catch {
+      // Sem rede: a operação não tem defeito. Não conta falha e para o envio.
+      break;
+    }
 
-      if (!resposta.ok) {
-        await registrarFalha(pendencia.id);
-        continue;
-      }
+    if (!resposta.ok) {
+      await registrarFalha(pendencia.id);
+      continue;
+    }
 
+    try {
       const retorno: unknown = await resposta.json();
 
       if (!Array.isArray(retorno) || retorno.length === 0) {
