@@ -12,4 +12,5 @@ export type RotasDasAbas = {
   AbaProdutos: NavigatorScreenParams<RotasDaPilha>;
   AbaCadastro: undefined;
   AbaMovimentacoes: undefined;
+  AbaSobre: undefined;
 };
