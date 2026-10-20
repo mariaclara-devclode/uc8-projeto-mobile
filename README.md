@@ -1,23 +1,18 @@
 # uc8-projeto-mobile
 
 Aplicativo mobile da UC8, por Maria Clara. Recorte do sistema Estok, da UC5.
-O recorte (entidades e telas) entra aqui no encontro 3.
 
 ## ESTOK — Gerenciador de Estoque Comercial
 
 ### Sistema de origem
 
-O aplicativo mobile será um recorte do sistema **ESTOK — Gerenciador de Estoque Comercial**, desenvolvido na UC5. O sistema de origem permite o gerenciamento de produtos, categorias e movimentações de estoque.
+O aplicativo mobile é um recorte do sistema **ESTOK — Gerenciador de Estoque Comercial**, desenvolvido na UC5. O sistema de origem permite o gerenciamento de produtos, categorias e movimentações de estoque.
 
 ### Recorte do aplicativo
 
-O aplicativo terá como entidade central **Produto**, que será a principal informação consultada e utilizada pelo usuário.
-
-As entidades utilizadas no recorte serão:
+O aplicativo tem como entidade central **Produto**, que é a principal informação consultada e cadastrada pelo usuário. As entidades do recorte são:
 
 #### Produto
-
-Campos utilizados pelo aplicativo:
 
 - `id`: identificador do produto.
 - `nome`: nome do produto.
@@ -28,126 +23,138 @@ Campos utilizados pelo aplicativo:
 
 #### Categoria
 
-Campos utilizados pelo aplicativo:
-
 - `id`: identificador da categoria.
 - `nome`: nome da categoria.
 - `descricao`: descrição da categoria.
 
 #### Movimentacao
 
-Campos utilizados pelo aplicativo:
-
 - `id`: identificador da movimentação.
 - `id_produto`: identificador do produto movimentado.
 - `quantidade`: quantidade movimentada.
-- `tipo`: tipo da movimentação, podendo ser `entrada` ou `saida`.
+- `tipo`: tipo da movimentação, `entrada` ou `saida`.
 - `data`: data e hora da movimentação.
 
-### Telas previstas
+### Telas
 
-O aplicativo terá cinco telas:
+O aplicativo tem cinco telas do recorte, mais uma tela de apoio:
 
-1. **Início** — apresenta o acesso às principais funções do aplicativo e um resumo do estoque.
-
-2. **Produtos** — apresenta a lista de produtos disponíveis para consulta.
-
-3. **Detalhes do Produto** — apresenta os dados de um produto selecionado e suas informações de estoque.
-
-4. **Cadastro de Produto** — permite cadastrar um novo produto e informar seus principais dados.
-
-5. **Movimentações** — permite registrar entradas e saídas de produtos no estoque.
+1. **Início** — acesso às principais funções e resumo do estoque (total de produtos, ativos e aguardando sincronização).
+2. **Produtos** — lista de produtos disponíveis para consulta.
+3. **Detalhes do Produto** — dados de um produto selecionado e o estoque atual (entradas menos saídas).
+4. **Cadastro de Produto** — cadastro de um novo produto.
+5. **Movimentações** — histórico de entradas e saídas do estoque (consulta).
+6. **Sobre** — tela de apoio com informações do aplicativo e da tela do aparelho.
 
 ### O que fica de fora
 
-Ficam de fora do aplicativo mobile o gerenciamento completo de categorias e as demais funcionalidades administrativas do sistema desenvolvido na UC5.
+Ficam de fora do aplicativo mobile o gerenciamento completo de categorias, o registro de novas movimentações e as demais funcionalidades administrativas do sistema da UC5.
 
 ### Tecnologias
 
 - Expo
 - React Native
 - TypeScript
+- React Navigation (pilha e abas)
+- `expo-sqlite` (banco local)
+- Supabase (banco na nuvem, acessado pela API de dados com `fetch`)
+- `expo-network` — biblioteca fora da lista do enunciado. Justificativa: detecta quando o aparelho fica sem internet e quando a conexão volta, para exibir o aviso offline e disparar a sincronização da fila. Funciona no Expo Go.
 
-### Objetivo do módulo
+## Configuração
 
-Este projeto corresponde ao recorte do sistema da UC5 para o desenvolvimento do aplicativo mobile na UC8.
+Para executar o aplicativo é necessário ter o Node.js instalado, o aplicativo **Expo Go** no celular e um projeto no Supabase.
 
-### Configuração
+### Instalação
 
-Para executar o aplicativo, é necessário ter o Node.js instalado, configurar as dependências do projeto e criar um projeto no Supabase.
-
-#### Instalação
-
-Execute o comando abaixo na pasta raiz do projeto:
+Na pasta raiz do projeto:
 
 ```bash
 npm install
 ```
 
-#### Configuração do Supabase
+### Dados de acesso do projeto Supabase
 
-1. Crie ou acesse o projeto no [Supabase](https://supabase.com/dashboard).
-2. Configure a tabela `produtos` no banco de dados.
-3. Habilite a segurança em nível de linha (RLS) e configure as políticas de acesso necessárias para leitura e inclusão de produtos.
-4. Copie a URL do projeto e a chave pública apropriada para uso no aplicativo.
-5. Crie o arquivo `.env.local` na raiz do projeto e configure as variáveis de ambiente necessárias.
+Para quem for executar este aplicativo, os dados do projeto são:
 
-O arquivo `.env.example` contém um modelo das variáveis exigidas, sem valores reais de acesso.
+- URL do projeto: `https://SEU-PROJETO.supabase.co`
+- Chave publicável: `sb_publishable_SUA-CHAVE-PUBLICAVEL`
 
-**Importante:** não compartilhe nem envie o arquivo `.env.local` ao GitHub. Ele contém informações de configuração que devem permanecer fora do repositório.
+A chave publicável é pública por desenho: o que ela pode fazer é limitado pelas políticas de RLS. A chave secreta e a senha do banco nunca saem do painel do Supabase.
 
-#### Executar o aplicativo
+### Variáveis de ambiente
 
-Após configurar as variáveis de ambiente, execute:
+1. Copie o arquivo `.env.example` para `.env.local` na raiz do projeto.
+2. Preencha os valores, com os nomes exatos abaixo:
+
+```
+EXPO_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_SUA-CHAVE-PUBLICAVEL
+```
+
+O arquivo `.env.example` traz os nomes das variáveis, sem valores. O `.env.local` não vai para o repositório. Depois de alterar o `.env.local`, reinicie o Expo com `npx expo start -c`.
+
+### Configuração do Supabase
+
+1. Crie um projeto no [Supabase](https://supabase.com/dashboard).
+2. Crie a tabela `produtos`, com as colunas `id`, `nome`, `codigo_barras`, `preco_venda`, `id_categoria` e `ativo`.
+3. Crie a tabela `movimentacoes`, com as colunas `id`, `id_produto`, `quantidade`, `tipo` e `data`.
+4. Ligue o RLS nas duas tabelas e crie as políticas:
+   - `produtos`: leitura e inclusão para o papel `anon`.
+   - `movimentacoes`: leitura para o papel `anon`.
+   Não há política de alteração nem de exclusão: a chave publicável não apaga nada.
+5. Copie a URL do projeto e a chave publicável para o `.env.local`.
+
+O aplicativo fala com o banco pela API de dados do Supabase, por HTTPS, usando `fetch`. Não há conexão direta ao banco. Toda resposta é tratada como `unknown` e validada antes do uso.
+
+### Executar o aplicativo
 
 ```bash
 npx expo start
 ```
 
-Siga as instruções exibidas no terminal para abrir o aplicativo no Expo Go ou em um emulador compatível.
-
-### Navegação
-
-O aplicativo utiliza navegação por abas para acessar as principais áreas e navegação em pilha para abrir os detalhes de um produto selecionado.
-
-- **Início:** aba inicial, aberta pela navegação inferior. Apresenta o acesso às principais funções do ESTOK.
-- **Produtos:** acessada pela aba Produtos. Apresenta a lista de produtos cadastrados.
-- **Detalhes do Produto:** aberta a partir da lista de produtos. Recebe o identificador numérico (`id`) do produto selecionado por meio de um parâmetro tipado da navegação.
-- **Cadastro de Produto:** acessado pela aba de cadastro. Permite preencher os dados e cadastrar um novo produto.
-- **Movimentações:** acessada pela aba Movimentações. Apresenta a área destinada às entradas e saídas do estoque.
-
-A navegação em pilha permite abrir os detalhes de um produto e retornar à lista. As abas permitem alternar entre as áreas principais do aplicativo.
-
-### Banco local e funcionamento offline
-
-O aplicativo utiliza SQLite por meio do pacote `expo-sqlite` para armazenar localmente os dados necessários ao funcionamento offline.
-
-O banco local é utilizado para:
-
-- Manter um cache dos produtos carregados do Supabase.
-- Permitir a consulta aos produtos já armazenados quando não houver conexão com a internet.
-- Registrar operações pendentes de sincronização, conforme a implementação do aplicativo.
-
-Quando a conexão estiver disponível, as operações pendentes deverão ser enviadas ao Supabase, com tratamento de falhas e confirmação da sincronização.
+Abra o Expo Go no celular, com o aparelho na mesma rede Wi-Fi do computador, e escaneie o QR code exibido no terminal. O aplicativo é para celular: o banco local (`expo-sqlite`) não funciona na versão web.
 
 ### Verificação do TypeScript
-
-Para verificar os tipos do projeto, execute:
 
 ```bash
 npx tsc --noEmit
 ```
 
-### Geração do APK
+## Navegação
 
-O projeto utiliza o EAS Build para gerar um APK para Android. Com o perfil de compilação configurado no arquivo `eas.json`, execute:
+O aplicativo usa **abas** para as seções principais e **pilha** para o que se abre a partir de outra tela e volta.
+
+- **Início** — aba `AbaInicio`, a aba inicial. É aberta pela navegação inferior. Não recebe parâmetros; lê o resumo do estoque do contexto do aplicativo. Tem atalhos para Produtos, Cadastro e Movimentações.
+- **Produtos** — aba `AbaProdutos`, que contém a pilha `Produtos` → `DetalheProduto`. É aberta pela aba inferior ou pelo atalho da tela Início. Não recebe parâmetros; lê a lista do contexto.
+- **Detalhes do Produto** — rota `DetalheProduto`, na pilha da aba Produtos. É aberta pelo botão "Ver detalhes" de um produto da lista e volta para a lista. Recebe o parâmetro tipado `{ id: number }`, o identificador do produto, e não o objeto inteiro.
+- **Cadastro de Produto** — aba `AbaCadastro`. É aberta pela aba inferior, pelo atalho da tela Início ou pelo botão "Cadastrar produto" da lista. Não recebe parâmetros.
+- **Movimentações** — aba `AbaMovimentacoes`. É aberta pela aba inferior ou pelo atalho da tela Início. Não recebe parâmetros.
+- **Sobre** — aba `AbaSobre`. É aberta pela aba inferior. Não recebe parâmetros.
+
+Os tipos das rotas ficam em `src/navegacao/tipos.ts`.
+
+## Estado compartilhado
+
+O contexto `EstadoAppContext` guarda o estado da conexão e a lista de produtos (com os estados `carregando`, `erro` e `pronto`). As telas Início, Produtos e Cadastro leem e atualizam a mesma lista. O contexto também acompanha a rede e dispara a sincronização da fila quando a conexão volta.
+
+## Banco local e funcionamento offline
+
+O aplicativo usa SQLite, por meio do pacote `expo-sqlite`, com acesso tipado. O banco local guarda:
+
+- **Cache de produtos e de movimentações**: o que veio do Supabase fica no aparelho e continua visível sem internet.
+- **Fila de sincronização**: um produto cadastrado sem conexão é salvo no aparelho, com identificador local negativo, e entra na fila.
+
+Quando a conexão volta, ou quando o aplicativo abre com internet, a fila é enviada ao Supabase. O produto local é trocado pelo registro da nuvem, e a operação sai da fila. Se o envio falha por falta de rede, a operação continua na fila sem perder dados. Uma operação que recusa o envio várias vezes deixa de ser reenviada, sem apagar o cadastro pendente.
+
+## Geração do APK
+
+O projeto usa o EAS Build para gerar um APK para Android, com o perfil `preview` do arquivo `eas.json`:
 
 ```bash
 npx eas-cli build -p android --profile preview
 ```
 
-A geração do APK depende da configuração do aplicativo e da autenticação necessária no EAS.
+Link do build: SERÁ PREENCHIDO NO MARCO 4.
 
-### Testes
+## Testes
 
-Os testes devem registrar os resultados reais de navegação, cadastro, consulta ao Supabase, funcionamento offline, sincronização e instalação do APK. Consulte `docs/roteiro_de_teste.md` para acompanhar os casos executados.
