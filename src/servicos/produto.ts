@@ -15,10 +15,14 @@ import {
   removerDaFila,
 } from "../banco/filaSincronizacao";
 
+import { ErroDaApi, ErroDeValidacao, registrarErro } from "../erros/erros";
+
 const URL_SUPABASE = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const CHAVE_SUPABASE = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 const COLUNAS_PRODUTO = "id,nome,codigo_barras,preco_venda,id_categoria,ativo";
+
+const MAXIMO_TENTATIVAS = 5;
 
 type DadosNovoProduto = Omit<Produto, "id">;
 
@@ -86,6 +90,8 @@ function validarProduto(dado: unknown): Produto {
   };
 }
 
+// Resposta HTTP de erro vira ErroDaApi, com o status. O texto do servidor
+// vai só para o detalhe do registro, nunca para a tela.
 async function verificarResposta(
   resposta: Response,
   mensagemPadrao: string,
@@ -93,7 +99,8 @@ async function verificarResposta(
   if (!resposta.ok) {
     const mensagem = await resposta.text();
 
-    throw new Error(
+    throw new ErroDaApi(
+      resposta.status,
       mensagem ? `${mensagemPadrao} ${mensagem}` : mensagemPadrao,
     );
   }
@@ -127,32 +134,49 @@ function prepararDadosProduto(produto: DadosNovoProduto): DadosNovoProduto {
 
 function validarDadosNovoProduto(produto: DadosNovoProduto): void {
   if (!produto.nome.trim()) {
-    throw new Error("Informe o nome do produto.");
+    throw new ErroDeValidacao("Informe o nome do produto.");
   }
 
   if (!produto.codigo_barras.trim()) {
-    throw new Error("Informe o código de barras.");
+    throw new ErroDeValidacao("Informe o código de barras.");
   }
 
   if (!Number.isFinite(produto.preco_venda) || produto.preco_venda < 0) {
-    throw new Error("Informe um preço de venda válido.");
+    throw new ErroDeValidacao("Informe um preço de venda válido.");
   }
 
   if (!Number.isInteger(produto.id_categoria) || produto.id_categoria <= 0) {
-    throw new Error("Selecione uma categoria válida.");
+    throw new ErroDeValidacao("Selecione uma categoria válida.");
   }
 }
 
-async function carregarProdutosLocaisOffline(): Promise<Produto[]> {
+// Quando a nuvem não responde, usa o que está no aparelho. Sem nada guardado,
+// relança o erro original (rede ou servidor), para a tela explicar o motivo.
+async function carregarProdutosLocaisOffline(
+  erroOriginal: unknown,
+): Promise<Produto[]> {
   const produtosLocais = await listarProdutosLocais();
 
   if (produtosLocais.length === 0) {
-    throw new Error(
-      "Não foi possível conectar ao Supabase e não há produtos salvos no aparelho.",
-    );
+    throw erroOriginal;
   }
 
   return produtosLocais;
+}
+
+async function produtoLocalOuErro(
+  id: number,
+  erroOriginal: unknown,
+): Promise<Produto> {
+  const produtosLocais = await listarProdutosLocais();
+
+  const produtoLocal = produtosLocais.find((produto) => produto.id === id);
+
+  if (produtoLocal) {
+    return produtoLocal;
+  }
+
+  throw erroOriginal;
 }
 
 export async function carregarProdutos(): Promise<Produto[]> {
@@ -166,12 +190,14 @@ export async function carregarProdutos(): Promise<Produto[]> {
       method: "GET",
       headers,
     });
-  } catch {
-    return carregarProdutosLocaisOffline();
+  } catch (erro: unknown) {
+    return carregarProdutosLocaisOffline(erro);
   }
 
   if (resposta.status >= 500) {
-    return carregarProdutosLocaisOffline();
+    return carregarProdutosLocaisOffline(
+      new ErroDaApi(resposta.status, "Servidor indisponível."),
+    );
   }
 
   await verificarResposta(resposta, "Não foi possível carregar os produtos.");
@@ -184,30 +210,29 @@ export async function carregarProdutos(): Promise<Produto[]> {
 
   const produtosNuvem = dados.map((dado: unknown) => validarProduto(dado));
 
-  await salvarProdutosLocais(produtosNuvem);
+  // O banco local falhar não derruba a lista que veio da nuvem.
+  let produtosOffline: Produto[] = [];
 
-  const produtosLocais = await listarProdutosLocais();
+  try {
+    await salvarProdutosLocais(produtosNuvem);
 
-  const produtosOffline = produtosLocais.filter((produto) => produto.id < 0);
+    const produtosLocais = await listarProdutosLocais();
+
+    produtosOffline = produtosLocais.filter((produto) => produto.id < 0);
+  } catch (erro: unknown) {
+    registrarErro("cache de produtos", erro);
+  }
 
   return [...produtosNuvem, ...produtosOffline];
 }
 
 export async function carregarProdutoPorId(id: number): Promise<Produto> {
   if (!Number.isInteger(id) || id === 0) {
-    throw new Error("O ID do produto é inválido.");
+    throw new ErroDeValidacao("O ID do produto é inválido.");
   }
 
   if (id < 0) {
-    const produtosLocais = await listarProdutosLocais();
-
-    const produtoLocal = produtosLocais.find((produto) => produto.id === id);
-
-    if (!produtoLocal) {
-      throw new Error("Produto local não encontrado.");
-    }
-
-    return produtoLocal;
+    return produtoLocalOuErro(id, new Error("Produto local não encontrado."));
   }
 
   const url =
@@ -221,29 +246,14 @@ export async function carregarProdutoPorId(id: number): Promise<Produto> {
       method: "GET",
       headers,
     });
-  } catch {
-    const produtosLocais = await listarProdutosLocais();
-
-    const produtoLocal = produtosLocais.find((produto) => produto.id === id);
-
-    if (produtoLocal) {
-      return produtoLocal;
-    }
-
-    throw new Error("Não foi possível carregar o produto sem conexão.");
+  } catch (erro: unknown) {
+    return produtoLocalOuErro(id, erro);
   }
 
   if (resposta.status >= 500) {
-    const produtosLocais = await listarProdutosLocais();
-
-    const produtoLocal = produtosLocais.find((produto) => produto.id === id);
-
-    if (produtoLocal) {
-      return produtoLocal;
-    }
-
-    throw new Error(
-      "O Supabase está indisponível e o produto não está salvo localmente.",
+    return produtoLocalOuErro(
+      id,
+      new ErroDaApi(resposta.status, "Servidor indisponível."),
     );
   }
 
@@ -257,7 +267,11 @@ export async function carregarProdutoPorId(id: number): Promise<Produto> {
 
   const produto = validarProduto(dados[0]);
 
-  await salvarProdutoLocal(produto);
+  try {
+    await salvarProdutoLocal(produto);
+  } catch (erro: unknown) {
+    registrarErro("cache do produto", erro);
+  }
 
   return produto;
 }
@@ -318,12 +332,15 @@ export async function cadastrarProduto(
 
   const produtoSalvo = validarProduto(retorno[0]);
 
-  await salvarProdutoLocal(produtoSalvo);
+  try {
+    await salvarProdutoLocal(produtoSalvo);
+  } catch (erro: unknown) {
+    // Já está na nuvem: falha no cache local não pode parecer falha do cadastro.
+    registrarErro("cache do produto", erro);
+  }
 
   return produtoSalvo;
 }
-
-const MAXIMO_TENTATIVAS = 5;
 
 export async function sincronizarPendencias(): Promise<number> {
   const pendencias = await listarPendencias();
@@ -374,6 +391,11 @@ export async function sincronizarPendencias(): Promise<number> {
     }
 
     if (!resposta.ok) {
+      registrarErro(
+        "sincronização de produto",
+        new ErroDaApi(resposta.status, await resposta.text()),
+      );
+
       await registrarFalha(pendencia.id);
       continue;
     }
