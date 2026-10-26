@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   SafeAreaView,
   StyleSheet,
@@ -10,10 +9,9 @@ import {
 } from "react-native";
 
 import { Botao } from "../componentes/Botao";
-import { carregarMovimentacoes } from "../servicos/movimentacao";
-
-import type { EstadoTela } from "../types/estadoTela";
-import type { Movimentacao } from "../types/movimentacao";
+import { FormularioMovimentacao } from "../componentes/FormularioMovimentacao";
+import { useEstadoApp } from "../contexto/EstadoAppContext";
+import { calcularSaldo, type NovaMovimentacao } from "../servicos/movimentacao";
 
 import { cores, espacos, raio } from "../tema/tema";
 
@@ -22,92 +20,119 @@ function formatarData(data: Date): string {
 }
 
 export function TelaMovimentacoes() {
-  const [estado, setEstado] = useState<EstadoTela<Movimentacao[]>>({
-    status: "carregando",
-  });
+  const { produtos, movimentacoes, recarregarMovimentacoes, registrarMovimentacao } =
+    useEstadoApp();
 
-  const buscarHistorico = useCallback(async () => {
-    setEstado({ status: "carregando" });
+  // Só produtos ativos e já enviados à nuvem (id positivo) recebem movimentação.
+  const produtosDisponiveis =
+    produtos.status === "pronto"
+      ? produtos.dados.filter((produto) => produto.ativo && produto.id > 0)
+      : [];
 
-    try {
-      const dados = await carregarMovimentacoes();
+  function nomeDoProduto(idProduto: number): string {
+    if (produtos.status === "pronto") {
+      const encontrado = produtos.dados.find((produto) => produto.id === idProduto);
 
-      setEstado({ status: "pronto", dados });
-    } catch (erro: unknown) {
-      console.error(erro);
-
-      setEstado({
-        status: "erro",
-        mensagem: "Não foi possível carregar as movimentações.",
-      });
+      if (encontrado) {
+        return encontrado.nome;
+      }
     }
-  }, []);
 
-  useEffect(() => {
-    void buscarHistorico();
-  }, [buscarHistorico]);
+    return `Produto ${idProduto}`;
+  }
+
+  function saldoDoProduto(idProduto: number): number | null {
+    return movimentacoes.status === "pronto"
+      ? calcularSaldo(movimentacoes.dados, idProduto)
+      : null;
+  }
+
+  async function registrar(dados: NovaMovimentacao): Promise<void> {
+    const resultado = await registrarMovimentacao(dados);
+
+    if (resultado === "offline") {
+      Alert.alert(
+        "Movimentação salva no aparelho",
+        "Ela ficará aguardando a sincronização quando a conexão voltar.",
+      );
+    } else {
+      Alert.alert(
+        "Movimentação registrada",
+        "O registro foi salvo no Supabase com sucesso.",
+      );
+    }
+  }
+
+  const cabecalho = (
+    <View>
+      <Text style={styles.titulo}>Movimentações</Text>
+
+      <Text style={styles.subtitulo}>
+        Registre e acompanhe as entradas e saídas do estoque.
+      </Text>
+
+      <FormularioMovimentacao
+        produtos={produtosDisponiveis}
+        saldoDoProduto={saldoDoProduto}
+        aoRegistrar={registrar}
+      />
+
+      <Text style={styles.tituloLista}>Histórico de movimentações</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.areaSegura}>
-      <View style={styles.container}>
-        <Text style={styles.titulo}>Movimentações</Text>
-
-        <Text style={styles.subtitulo}>
-          Acompanhe as entradas e saídas do estoque.
-        </Text>
-
-        <View style={styles.card}>
-          <Text style={styles.tituloCard}>Histórico de movimentações</Text>
-
-          {estado.status === "carregando" ? (
+      <FlatList
+        data={movimentacoes.status === "pronto" ? movimentacoes.dados : []}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={cabecalho}
+        ListEmptyComponent={
+          movimentacoes.status === "carregando" ? (
             <View style={styles.estado}>
               <ActivityIndicator size="large" color={cores.primaria} />
 
               <Text style={styles.mensagem}>Carregando histórico...</Text>
             </View>
-          ) : estado.status === "erro" ? (
+          ) : movimentacoes.status === "erro" ? (
             <View>
-              <Text style={styles.erro}>{estado.mensagem}</Text>
+              <Text style={styles.erro}>{movimentacoes.mensagem}</Text>
 
               <View style={styles.botaoTentarNovamente}>
                 <Botao
                   titulo="Tentar novamente"
-                  onPress={() => void buscarHistorico()}
+                  onPress={() => void recarregarMovimentacoes()}
                 />
               </View>
             </View>
           ) : (
-            <FlatList
-              data={estado.dados}
-              keyExtractor={(item) => String(item.id)}
-              ListEmptyComponent={
-                <Text style={styles.vazio}>
-                  Nenhuma movimentação disponível.
-                </Text>
-              }
-              renderItem={({ item }) => (
-                <View style={styles.item}>
-                  <Text style={styles.tipo}>
-                    {item.tipo === "entrada"
-                      ? "Entrada de estoque"
-                      : "Saída de estoque"}
-                  </Text>
+            <Text style={styles.vazio}>Nenhuma movimentação disponível.</Text>
+          )
+        }
+        renderItem={({ item }) => (
+          <View style={styles.item}>
+            <Text style={styles.tipo}>
+              {item.tipo === "entrada"
+                ? "Entrada de estoque"
+                : "Saída de estoque"}
+            </Text>
 
-                  <Text style={styles.detalhe}>
-                    Produto ID: {item.id_produto}
-                  </Text>
+            <Text style={styles.detalhe}>
+              Produto: {nomeDoProduto(item.id_produto)}
+            </Text>
 
-                  <Text style={styles.detalhe}>
-                    Quantidade: {item.quantidade}
-                  </Text>
+            <Text style={styles.detalhe}>Quantidade: {item.quantidade}</Text>
 
-                  <Text style={styles.data}>{formatarData(item.data)}</Text>
-                </View>
-              )}
-            />
-          )}
-        </View>
-      </View>
+            <Text style={styles.data}>{formatarData(item.data)}</Text>
+
+            {item.id < 0 && (
+              <Text style={styles.pendente}>Aguardando sincronização</Text>
+            )}
+          </View>
+        )}
+      />
     </SafeAreaView>
   );
 }
@@ -118,8 +143,8 @@ const styles = StyleSheet.create({
     backgroundColor: cores.fundo,
   },
   container: {
-    flex: 1,
     padding: espacos.md,
+    paddingBottom: espacos.lg,
   },
   titulo: {
     fontSize: 26,
@@ -132,19 +157,11 @@ const styles = StyleSheet.create({
     marginTop: espacos.xs,
     marginBottom: espacos.md,
   },
-  card: {
-    flex: 1,
-    backgroundColor: cores.superficie,
-    padding: espacos.md,
-    borderRadius: raio,
-    borderWidth: 1,
-    borderColor: cores.borda,
-  },
-  tituloCard: {
+  tituloLista: {
     fontSize: 18,
     fontWeight: "bold",
     color: cores.texto,
-    marginBottom: espacos.md,
+    marginBottom: espacos.sm,
   },
   estado: {
     alignItems: "center",
@@ -170,9 +187,12 @@ const styles = StyleSheet.create({
     marginTop: espacos.md,
   },
   item: {
-    paddingVertical: espacos.md,
-    borderBottomWidth: 1,
-    borderBottomColor: cores.borda,
+    backgroundColor: cores.superficie,
+    padding: espacos.md,
+    borderRadius: raio,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    marginBottom: espacos.sm,
   },
   tipo: {
     fontSize: 16,
@@ -188,6 +208,11 @@ const styles = StyleSheet.create({
   data: {
     fontSize: 13,
     color: cores.textoSecundario,
+    marginTop: espacos.xs,
+  },
+  pendente: {
+    fontSize: 13,
+    color: "#92400E",
     marginTop: espacos.xs,
   },
 });

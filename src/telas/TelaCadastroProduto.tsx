@@ -39,13 +39,9 @@ export function TelaCadastroProduto() {
           "O produto foi cadastrado no Supabase com sucesso.",
         );
       }
-    } catch (erro: unknown) {
-      console.error(erro);
-
-      // Relança para o formulário saber que falhou e NÃO apagar o que a
-      // pessoa digitou. O formulário mostra a mensagem de erro na tela.
-      throw erro;
     } finally {
+      // Se falhar, o erro sobe para o formulário, que registra, mostra a
+      // mensagem na tela e mantém o que a pessoa digitou.
       setSalvando(false);
     }
   }

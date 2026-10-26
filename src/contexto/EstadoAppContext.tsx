@@ -16,7 +16,19 @@ import {
   type ResultadoCadastro,
 } from "../servicos/produto";
 
+import {
+  calcularSaldo,
+  carregarMovimentacoes,
+  registrarMovimentacao as registrarMovimentacaoNoServico,
+  sincronizarMovimentacoesPendentes,
+  type NovaMovimentacao,
+  type ResultadoRegistro,
+} from "../servicos/movimentacao";
+
+import { ErroDeValidacao, registrarErro } from "../erros/erros";
+
 import type { EstadoTela } from "../types/estadoTela";
+import type { Movimentacao } from "../types/movimentacao";
 import type { Produto } from "../types/produto";
 
 interface EstadoApp {
@@ -25,6 +37,11 @@ interface EstadoApp {
   produtos: EstadoTela<Produto[]>;
   recarregarProdutos: () => Promise<void>;
   incluirProduto: (produto: Produto) => Promise<ResultadoCadastro>;
+  movimentacoes: EstadoTela<Movimentacao[]>;
+  recarregarMovimentacoes: () => Promise<void>;
+  registrarMovimentacao: (
+    dados: NovaMovimentacao,
+  ) => Promise<ResultadoRegistro>;
 }
 
 const ContextoEstadoApp = createContext<EstadoApp | null>(null);
@@ -41,6 +58,12 @@ export function ProvedorEstadoApp({ children }: ProvedorEstadoAppProps) {
     status: "carregando",
   });
 
+  const [movimentacoes, setMovimentacoes] = useState<
+    EstadoTela<Movimentacao[]>
+  >({
+    status: "carregando",
+  });
+
   const sincronizando = useRef(false);
 
   const buscarProdutos = useCallback(
@@ -54,11 +77,33 @@ export function ProvedorEstadoApp({ children }: ProvedorEstadoAppProps) {
 
         setProdutos({ status: "pronto", dados: lista });
       } catch (erro: unknown) {
-        console.error(erro);
+        const classificado = registrarErro("lista de produtos", erro);
 
         setProdutos({
           status: "erro",
-          mensagem: "Não foi possível carregar os produtos.",
+          mensagem: classificado.mensagem,
+        });
+      }
+    },
+    [],
+  );
+
+  const buscarMovimentacoes = useCallback(
+    async (mostrarCarregando: boolean): Promise<void> => {
+      if (mostrarCarregando) {
+        setMovimentacoes({ status: "carregando" });
+      }
+
+      try {
+        const lista = await carregarMovimentacoes();
+
+        setMovimentacoes({ status: "pronto", dados: lista });
+      } catch (erro: unknown) {
+        const classificado = registrarErro("lista de movimentações", erro);
+
+        setMovimentacoes({
+          status: "erro",
+          mensagem: classificado.mensagem,
         });
       }
     },
@@ -68,6 +113,11 @@ export function ProvedorEstadoApp({ children }: ProvedorEstadoAppProps) {
   const recarregarProdutos = useCallback(
     () => buscarProdutos(true),
     [buscarProdutos],
+  );
+
+  const recarregarMovimentacoes = useCallback(
+    () => buscarMovimentacoes(true),
+    [buscarMovimentacoes],
   );
 
   const incluirProduto = useCallback(
@@ -82,6 +132,35 @@ export function ProvedorEstadoApp({ children }: ProvedorEstadoAppProps) {
     [buscarProdutos],
   );
 
+  const registrarMovimentacao = useCallback(
+    async (dados: NovaMovimentacao): Promise<ResultadoRegistro> => {
+      // A saída nunca pode passar do estoque atual. O saldo já considera as
+      // movimentações que ainda esperam sincronização.
+      if (dados.tipo === "saida") {
+        if (movimentacoes.status !== "pronto") {
+          throw new ErroDeValidacao(
+            "O estoque ainda não foi carregado. Aguarde e tente de novo.",
+          );
+        }
+
+        const saldo = calcularSaldo(movimentacoes.dados, dados.id_produto);
+
+        if (dados.quantidade > saldo) {
+          throw new ErroDeValidacao(
+            `Estoque insuficiente. Saldo atual: ${saldo} unidades.`,
+          );
+        }
+      }
+
+      const resultado = await registrarMovimentacaoNoServico(dados);
+
+      await buscarMovimentacoes(false);
+
+      return resultado;
+    },
+    [movimentacoes, buscarMovimentacoes],
+  );
+
   const sincronizar = useCallback(async (): Promise<void> => {
     if (sincronizando.current) {
       return;
@@ -90,23 +169,36 @@ export function ProvedorEstadoApp({ children }: ProvedorEstadoAppProps) {
     sincronizando.current = true;
 
     try {
-      const enviadas = await sincronizarPendencias();
+      // Produtos primeiro; as movimentações só usam produtos já enviados.
+      try {
+        const produtosEnviados = await sincronizarPendencias();
 
-      if (enviadas > 0) {
-        await buscarProdutos(false);
+        if (produtosEnviados > 0) {
+          await buscarProdutos(false);
+        }
+      } catch (erro: unknown) {
+        registrarErro("sincronização de produtos", erro);
       }
-    } catch (erro: unknown) {
-      // As operações pendentes continuam na fila.
-      console.error(erro);
+
+      try {
+        const movimentacoesEnviadas = await sincronizarMovimentacoesPendentes();
+
+        if (movimentacoesEnviadas > 0) {
+          await buscarMovimentacoes(false);
+        }
+      } catch (erro: unknown) {
+        registrarErro("sincronização de movimentações", erro);
+      }
     } finally {
       sincronizando.current = false;
     }
-  }, [buscarProdutos]);
+  }, [buscarProdutos, buscarMovimentacoes]);
 
-  // Carga inicial da lista.
+  // Carga inicial das listas.
   useEffect(() => {
     void buscarProdutos(true);
-  }, [buscarProdutos]);
+    void buscarMovimentacoes(true);
+  }, [buscarProdutos, buscarMovimentacoes]);
 
   // Acompanha a rede e envia a fila quando a conexão está disponível.
   useEffect(() => {
@@ -159,6 +251,9 @@ export function ProvedorEstadoApp({ children }: ProvedorEstadoAppProps) {
         produtos,
         recarregarProdutos,
         incluirProduto,
+        movimentacoes,
+        recarregarMovimentacoes,
+        registrarMovimentacao,
       }}
     >
       {children}

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Botao } from "./Botao";
 import { Campo } from "./Campo";
+import { registrarErro } from "../erros/erros";
 import type { Produto } from "../types/produto";
 
 interface FormularioProdutoProps {
@@ -72,8 +73,10 @@ export default function FormularioProduto({
       setPrecoVenda("");
       setCategoria("");
       setNomeTocado(false);
-    } catch {
-      setErro("Não foi possível cadastrar o produto.");
+    } catch (erroRecebido: unknown) {
+      // Validação mostra a própria mensagem; rede e servidor mostram a
+      // mensagem do tipo de erro. O detalhe técnico vai só para o console.
+      setErro(registrarErro("cadastro de produto", erroRecebido).mensagem);
     } finally {
       setSalvando(false);
     }

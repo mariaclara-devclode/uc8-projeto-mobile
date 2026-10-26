@@ -11,6 +11,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { carregarProdutoPorId } from "../servicos/produto";
 import { carregarMovimentacoes } from "../servicos/movimentacao";
 
+import { registrarErro } from "../erros/erros";
 import type { EstadoTela } from "../types/estadoTela";
 import type { Produto } from "../types/produto";
 import type { RotasDaPilha } from "../navegacao/tipos";
@@ -39,7 +40,10 @@ async function calcularSaldo(idProduto: number): Promise<number | null> {
             : total - movimentacao.quantidade,
         0,
       );
-  } catch {
+  } catch (erro: unknown) {
+    // Sem o saldo, o detalhe do produto continua aparecendo.
+    registrarErro("saldo do produto", erro);
+
     return null;
   }
 }
@@ -67,12 +71,12 @@ export function TelaDetalheProduto({ route }: Props) {
           setEstado({ status: "pronto", dados: { produto, saldo } });
         }
       } catch (erro: unknown) {
-        console.error(erro);
+        const classificado = registrarErro("detalhe do produto", erro);
 
         if (ativo) {
           setEstado({
             status: "erro",
-            mensagem: "Não foi possível carregar o produto.",
+            mensagem: classificado.mensagem,
           });
         }
       }
