@@ -146,6 +146,14 @@ O aplicativo usa SQLite, por meio do pacote `expo-sqlite`, com acesso tipado. O 
 
 Quando a conexão volta, ou quando o aplicativo abre com internet, a fila é enviada ao Supabase. O produto local é trocado pelo registro da nuvem, e a operação sai da fila. Se o envio falha por falta de rede, a operação continua na fila sem perder dados. Uma operação que recusa o envio várias vezes deixa de ser reenviada, sem apagar o cadastro pendente.
 
+## Tratamento de erros e dados no aparelho
+
+Todo erro passa por `src/erros/erros.ts`, que o classifica em rede, servidor (`ErroDaApi`, com o status), banco local (`ErroDoBanco`), validação (`ErroDeValidacao`) ou desconhecido. Cada tipo tem uma mensagem para quem usa o aplicativo; o detalhe técnico vai só para o console, com a origem, e o que a pessoa digitou não entra no registro. Se o banco local falhar, a lista que veio da nuvem continua aparecendo.
+
+O que o aplicativo guarda no aparelho são os produtos e as movimentações do estoque e a fila de envio. Nenhum dado pessoal de terceiros é guardado ou enviado: os dados são fictícios. O banco local fica no armazenamento interno do aplicativo. Na aba Sobre é possível ver quanto está guardado e apagar a cópia local; o que ainda não foi enviado ao Supabase é mantido, para não perder cadastros feitos sem conexão.
+
+A chave publicável só lê e inclui: o papel `anon` não tem permissão de alterar nem de apagar (`supabase/esquema.sql`).
+
 ## Geração do APK
 
 O projeto usa o EAS Build para gerar um APK para Android, com o perfil `preview` do arquivo `eas.json`:
