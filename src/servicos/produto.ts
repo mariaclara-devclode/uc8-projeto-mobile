@@ -141,6 +141,13 @@ function validarDadosNovoProduto(produto: DadosNovoProduto): void {
     throw new ErroDeValidacao("Informe o código de barras.");
   }
 
+  // Só números, de 8 a 14 dígitos: cobre EAN-8, UPC-A (12), EAN-13 e GTIN-14.
+  if (!/^\d{8,14}$/.test(produto.codigo_barras.trim())) {
+    throw new ErroDeValidacao(
+      "O código de barras deve ter só números, de 8 a 14 dígitos.",
+    );
+  }
+
   if (!Number.isFinite(produto.preco_venda) || produto.preco_venda < 0) {
     throw new ErroDeValidacao("Informe um preço de venda válido.");
   }
