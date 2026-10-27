@@ -1,12 +1,42 @@
 import * as SQLite from "expo-sqlite";
+import { Platform } from "react-native";
 
 import { ErroDoBanco } from "../erros/erros";
 
+// Tempo máximo para abrir e preparar o banco. Sem limite, uma abertura que
+// nunca termina deixaria a tela esperando para sempre.
+const LIMITE_ABERTURA_MS = 10000;
+
 let bancoCompartilhado: Promise<SQLite.SQLiteDatabase> | null = null;
+
+function comLimiteDeTempo<T>(
+  promessa: Promise<T>,
+  limiteMs: number,
+  mensagem: string,
+): Promise<T> {
+  return new Promise<T>((resolver, rejeitar) => {
+    const relogio = setTimeout(() => rejeitar(new Error(mensagem)), limiteMs);
+
+    promessa.then(
+      (valor) => {
+        clearTimeout(relogio);
+        resolver(valor);
+      },
+      (erro: unknown) => {
+        clearTimeout(relogio);
+        rejeitar(erro);
+      },
+    );
+  });
+}
 
 export function abrirBancoLocal(): Promise<SQLite.SQLiteDatabase> {
   if (bancoCompartilhado === null) {
-    bancoCompartilhado = inicializarBanco().catch((erro: unknown) => {
+    bancoCompartilhado = comLimiteDeTempo(
+      inicializarBanco(),
+      LIMITE_ABERTURA_MS,
+      "O banco local demorou demais para abrir.",
+    ).catch((erro: unknown) => {
       // Se a abertura falhar, a próxima chamada tenta de novo.
       bancoCompartilhado = null;
       throw erro;
@@ -54,15 +84,44 @@ async function inicializarBanco(): Promise<SQLite.SQLiteDatabase> {
   return banco;
 }
 
-// Toda operação no SQLite passa por aqui: qualquer falha vira ErroDoBanco,
-// com a mensagem original no detalhe.
+// Fila das operações no banco. O SQLite do aparelho tem uma única conexão, e
+// duas transações ao mesmo tempo nela se atropelam ("cannot start a transaction
+// within a transaction"). As listas de produtos e de movimentações carregam
+// juntas na abertura do app, então cada operação espera a anterior terminar.
+let filaDeOperacoes: Promise<void> = Promise.resolve();
+
+function emSerie<T>(operacao: () => Promise<T>): Promise<T> {
+  const execucao = filaDeOperacoes.then(operacao);
+
+  // A fila segue mesmo que esta operação falhe; o erro volta só para quem pediu.
+  filaDeOperacoes = execucao.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  return execucao;
+}
+
+// Toda operação no SQLite passa por aqui: uma de cada vez, e qualquer falha
+// vira ErroDoBanco, com a mensagem original no detalhe.
+// Não chame noBanco de dentro de uma operação: ela esperaria a si mesma.
 export async function noBanco<T>(
   operacao: (banco: SQLite.SQLiteDatabase) => Promise<T>,
 ): Promise<T> {
-  try {
-    const banco = await abrirBancoLocal();
+  // O SQLite do aparelho não existe na Web: falha na hora, em vez de tentar
+  // abrir o banco e ficar esperando. Quem chama já trata ErroDoBanco.
+  if (Platform.OS === "web") {
+    throw new ErroDoBanco(
+      "O armazenamento local só existe no aplicativo para celular.",
+    );
+  }
 
-    return await operacao(banco);
+  try {
+    return await emSerie(async () => {
+      const banco = await abrirBancoLocal();
+
+      return operacao(banco);
+    });
   } catch (erro: unknown) {
     throw new ErroDoBanco(erro instanceof Error ? erro.message : String(erro));
   }
