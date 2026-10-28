@@ -43,12 +43,18 @@ O aplicativo tem cinco telas do recorte, mais uma tela de apoio:
 2. **Produtos** — lista de produtos disponíveis para consulta.
 3. **Detalhes do Produto** — dados de um produto selecionado e o estoque atual (entradas menos saídas).
 4. **Cadastro de Produto** — cadastro de um novo produto.
-5. **Movimentações** — histórico de entradas e saídas do estoque (consulta).
-6. **Sobre** — tela de apoio com informações do aplicativo e da tela do aparelho.
+5. **Movimentações** — registro de novas entradas e saídas e histórico do estoque.
+6. **Sobre** — tela de apoio com informações do aplicativo, do que está guardado no aparelho (com a opção de apagar a cópia local) e da tela do aparelho.
+
+### Regras do aplicativo
+
+- **Cadastro de produto:** nome, código de barras, preço e categoria são obrigatórios. O código de barras aceita só números, de 8 a 14 dígitos. O preço deve ser maior que zero e a categoria, um número inteiro maior que zero.
+- **Movimentações:** a quantidade é um número inteiro maior que zero. Uma saída não pode passar do estoque atual (entradas menos saídas, incluindo o que ainda espera sincronização).
+- **Sem internet:** produtos e movimentações são guardados no aparelho e enviados ao Supabase quando a conexão volta.
 
 ### O que fica de fora
 
-Ficam de fora do aplicativo mobile o gerenciamento completo de categorias, o registro de novas movimentações e as demais funcionalidades administrativas do sistema da UC5.
+Ficam de fora do aplicativo mobile o gerenciamento completo de categorias, a alteração e a exclusão de produtos e de movimentações e as demais funcionalidades administrativas do sistema da UC5.
 
 ### Tecnologias
 
@@ -96,13 +102,9 @@ O arquivo `.env.example` traz os nomes das variáveis, sem valores. O `.env.loca
 ### Configuração do Supabase
 
 1. Crie um projeto no [Supabase](https://supabase.com/dashboard).
-2. Crie a tabela `produtos`, com as colunas `id`, `nome`, `codigo_barras`, `preco_venda`, `id_categoria` e `ativo`.
-3. Crie a tabela `movimentacoes`, com as colunas `id`, `id_produto`, `quantidade`, `tipo` e `data`.
-4. Ligue o RLS nas duas tabelas e crie as políticas:
-   - `produtos`: leitura e inclusão para o papel `anon`.
-   - `movimentacoes`: leitura para o papel `anon`.
-   Não há política de alteração nem de exclusão: a chave publicável não apaga nada.
-5. Copie a URL do projeto e a chave publicável para o `.env.local`.
+2. No SQL Editor, cole e execute o arquivo `supabase/esquema.sql`. Ele cria a tabela `produtos` (colunas `id`, `nome`, `codigo_barras`, `preco_venda`, `id_categoria` e `ativo`) e a tabela `movimentacoes` (colunas `id`, `id_produto`, `quantidade`, `tipo` e `data`), liga o RLS nas duas e cria as políticas de leitura e de inclusão para o papel `anon`.
+3. O mesmo script tira do papel `anon` a permissão de alterar e de apagar: a chave publicável só lê e inclui. Para conferir: `select has_table_privilege('anon', 'public.produtos', 'DELETE');` deve retornar `false`.
+4. Copie a URL do projeto e a chave publicável para o `.env.local`.
 
 O aplicativo fala com o banco pela API de dados do Supabase, por HTTPS, usando `fetch`. Não há conexão direta ao banco. Toda resposta é tratada como `unknown` e validada antes do uso.
 
@@ -113,6 +115,11 @@ npx expo start
 ```
 
 Abra o Expo Go no celular, com o aparelho na mesma rede Wi-Fi do computador, e escaneie o QR code exibido no terminal. O aplicativo é para celular: o banco local (`expo-sqlite`) não funciona na versão web.
+
+Se o celular não conseguir conectar pelo Wi-Fi, há duas alternativas:
+
+- Túnel: `npx expo start -c --tunnel`.
+- Cabo USB (Android, com a Depuração USB ligada): `adb reverse tcp:8081 tcp:8081`, depois `export REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1` e `npx expo start -c`; no Expo Go, use "Enter URL" com `exp://127.0.0.1:8081`.
 
 ### Verificação do TypeScript
 
@@ -135,16 +142,16 @@ Os tipos das rotas ficam em `src/navegacao/tipos.ts`.
 
 ## Estado compartilhado
 
-O contexto `EstadoAppContext` guarda o estado da conexão e a lista de produtos (com os estados `carregando`, `erro` e `pronto`). As telas Início, Produtos e Cadastro leem e atualizam a mesma lista. O contexto também acompanha a rede e dispara a sincronização da fila quando a conexão volta.
+O contexto `EstadoAppContext` guarda o estado da conexão, a lista de produtos e a lista de movimentações (cada uma com os estados `carregando`, `erro` e `pronto`). As telas Início, Produtos, Cadastro, Movimentações e Detalhes leem e atualizam essas mesmas listas. O contexto também acompanha a rede e dispara a sincronização da fila quando a conexão volta: primeiro os produtos, depois as movimentações.
 
 ## Banco local e funcionamento offline
 
 O aplicativo usa SQLite, por meio do pacote `expo-sqlite`, com acesso tipado. O banco local guarda:
 
 - **Cache de produtos e de movimentações**: o que veio do Supabase fica no aparelho e continua visível sem internet.
-- **Fila de sincronização**: um produto cadastrado sem conexão é salvo no aparelho, com identificador local negativo, e entra na fila.
+- **Fila de sincronização**: um produto ou uma movimentação registrados sem conexão são salvos no aparelho, com identificador local negativo, e entram na fila.
 
-Quando a conexão volta, ou quando o aplicativo abre com internet, a fila é enviada ao Supabase. O produto local é trocado pelo registro da nuvem, e a operação sai da fila. Se o envio falha por falta de rede, a operação continua na fila sem perder dados. Uma operação que recusa o envio várias vezes deixa de ser reenviada, sem apagar o cadastro pendente.
+Quando a conexão volta, ou quando o aplicativo abre com internet, a fila é enviada ao Supabase, com os produtos antes das movimentações. O registro local é trocado pelo registro da nuvem, e a operação sai da fila. As operações no banco local acontecem uma de cada vez, para as gravações não se atropelarem. Se o envio falha por falta de rede, a operação continua na fila sem perder dados. Uma operação que recusa o envio várias vezes deixa de ser reenviada, sem apagar o registro pendente.
 
 ## Tratamento de erros e dados no aparelho
 
@@ -166,3 +173,4 @@ Link do build: SERÁ PREENCHIDO NO MARCO 4.
 
 ## Testes
 
+O roteiro de teste, com os casos, os resultados observados no aparelho e o registro das correções, está em [`docs/roteiro_de_teste.md`](docs/roteiro_de_teste.md).
