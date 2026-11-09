@@ -11,7 +11,7 @@ Legenda do resultado: **aprovado** (o observado é o esperado), **falha** (não 
 
 - Aparelho: Redmi Note 14
 - Sistema do aparelho: HyperOS 3.0.305.0
-- Forma de execução (Expo Go ou APK): Expo Go, ligado ao computador por cabo USB, até 29/10/2026 e nas execuções de 05/11/2026 (C05 e repetição do C09); APK gerado pelo EAS (build de 03/11/2026), instalado no celular, nas demais execuções de 03/11/2026
+- Forma de execução (Expo Go ou APK): Expo Go, ligado ao computador por cabo USB, até 29/10/2026 e nas execuções de 05/11/2026 (C05 e repetição do C09); APK gerado pelo EAS e instalado no celular: build de 03/11/2026, nas demais execuções de 03/11/2026, e build de 09/11/2026 (com as correções dos itens 10 a 13), nas execuções de 09/11/2026
 - Versão do aplicativo: 1.0.0
 - Casos sem rede: modo avião no celular, com Wi-Fi e dados móveis desligados (no Expo Go, o cabo USB mantém a ligação com o Expo, mas não dá rede ao aplicativo)
 
@@ -19,7 +19,7 @@ Legenda do resultado: **aprovado** (o observado é o esperado), **falha** (não 
 
 | # | Caso | Passos | Esperado | Resultado | Onde e quando | Correção |
 |---|---|---|---|---|---|---|
-| C01 | Carga com rede | Abrir o aplicativo com internet | Aba Início com o resumo (produtos cadastrados, ativos, aguardando sincronização); aba Produtos com a lista da nuvem, sem aviso de offline | corrigido | Redmi Note 14, 03/11/2026 | Itens 1 e 9 do registro |
+| C01 | Carga com rede | Abrir o aplicativo com internet | Aba Início com o resumo (produtos cadastrados, ativos, aguardando sincronização); aba Produtos com a lista da nuvem, sem aviso de offline | corrigido | Redmi Note 14, 03/11/2026 e 09/11/2026 (APK do build de 09/11) | Itens 1 e 9 do registro |
 | C02 | Navegação em pilha | Produtos; "Ver detalhes" em um produto; voltar | Tela de detalhes com nome, código, preço, categoria, situação e estoque atual; ao voltar, a lista | aprovado | Redmi Note 14, 03/11/2026 | - |
 | C03 | Cadastro válido com rede | Cadastro; nome `Produto teste`, código `7891000100103`, preço `10,50` e categoria `1`; Adicionar produto | Alerta `Cadastro realizado`; o produto aparece na lista e na tabela `produtos` do Supabase | aprovado | Redmi Note 14, 03/11/2026 | - |
 | C04 | Cadastro inválido | (a) Cadastro; nome preenchido, código em branco; Adicionar produto. (b) Tudo preenchido, preço `0`; Adicionar produto. (c) Tocar no campo Nome e sair dele sem escrever | (a) Mensagem `Preencha todos os campos do produto.`; (b) mensagem `Informe um preço válido.`; (c) `O nome do produto é obrigatório.` sob o campo e o botão desabilitado. Nos três, os campos continuam preenchidos | aprovado | Redmi Note 14, 03/11/2026 | - |
@@ -122,9 +122,18 @@ no aparelho; "Origem" diz como o problema foi encontrado.
 - **Origem:** observado no aparelho em 03/11/2026: as cinco abas mostravam um quadrado vazio, o ícone provisório do React Navigation, porque as abas só tinham título.
 - **Correção:** ícones Ionicons (`@expo/vector-icons`) em cada aba, definidos em `App.tsx`; a aba ativa usa a cor primária do tema.
 - **Data:** 05/11/2026 | **Commit:** a2254f4
-- **Repetição:** em 05/11/2026, no Expo Go, as cinco abas mostraram o ícone.
+- **Repetição:** em 05/11/2026, no Expo Go, as cinco abas mostraram o ícone. Em 09/11/2026, no APK do build de 09/11, as cinco abas também mostraram o ícone.
+
+### 13. Build do APK falhou depois dos ícones: duas versões do `expo-font`
+- **Origem:** o build do EAS de 05/11/2026 terminou com erro na fase `Run gradlew` (`Gradle build failed with unknown error`). Em 09/11/2026, `npx expo-doctor` terminou com 19 de 21 verificações e dois avisos.
+- **Observado:** `Missing peer dependency: expo-font` (exigido por `@expo/vector-icons`) e duplicata do módulo nativo: `expo-font@58.0.11` na raiz do projeto e `expo-font@57.0.4` dentro de `expo`.
+- **Causa:** ao instalar o `@expo/vector-icons` (item 12), o `npm` trouxe uma versão do `expo-font` fora do SDK 57. Um build nativo aceita uma só versão de cada módulo nativo. O Expo Go já traz o módulo embutido, por isso o aplicativo funcionava nele. O log do Gradle de 05/11 não foi analisado a fundo: o build passou depois desta correção.
+- **Correção:** `npx expo install expo-font`, que instala a versão do SDK 57 e acrescenta o plugin `expo-font` ao `app.json`. Depois disso, `npx expo-doctor` terminou com 21 de 21 verificações e `npx expo export --platform android` terminou sem erro.
+- **Data:** 09/11/2026 | **Commit:** 1896527
+- **Repetição:** em 09/11/2026, um novo build do EAS terminou com sucesso e o APK foi instalado no Redmi Note 14.
 
 ### Ambiente (não são casos do roteiro)
 - **Web:** o aplicativo é para celular. Na Web o `expo-sqlite` não funciona (`Unable to resolve "./wa-sqlite/wa-sqlite.wasm"`), e o teste deve ser feito no Expo Go.
 - **Conexão do Expo Go:** o erro `Failed to download remote update` no celular era a ligação com o computador. Resolvido com o cabo USB: `adb reverse tcp:8081 tcp:8081`, variável `REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1` e URL `exp://127.0.0.1:8081` no Expo Go. Observado em 27/10/2026.
+- **Aviso de offline com o Wi-Fi ligado:** em 09/11/2026, no Expo Go, o aviso `Sem conexão com a internet...` apareceu com o celular conectado ao Wi-Fi, porque aquela rede estava sem acesso à internet. O aplicativo mostrou a lista guardada no aparelho com o aviso, como no C08. Não é defeito do aplicativo.
 - **Aviso de `SafeAreaView`:** no Expo Go aparece um aviso amarelo, `SafeAreaView has been deprecated`. É do modo de desenvolvimento, não aparece no APK e não afeta o funcionamento. A troca por `react-native-safe-area-context` fica como melhoria futura.
